@@ -20,10 +20,13 @@ export function SubmittersTab() {
   }, [])
 
   async function addSubmitter() {
-    const trimmed = name.trim()
-    if (!trimmed) return
+    const names = name
+      .split(',')
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+    if (names.length === 0) return
     setSaving(true)
-    await supabase.from('submitters').insert({ name: trimmed })
+    await supabase.from('submitters').insert(names.map((n) => ({ name: n })))
     setName('')
     setSaving(false)
     load()
@@ -44,21 +47,26 @@ export function SubmittersTab() {
     <div className="max-w-xl">
       <h2 className="text-lg font-semibold text-zinc-900 mb-4">Submitters</h2>
 
-      <div className="flex gap-2 mb-6">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addSubmitter()}
-          placeholder="Full name"
-          className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <button
-          onClick={addSubmitter}
-          disabled={saving || !name.trim()}
-          className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
-        >
-          Add
-        </button>
+      <div className="flex flex-col gap-2 mb-6">
+        <label className="text-xs text-zinc-500">
+          Full name, or paste multiple names separated by commas
+        </label>
+        <div className="flex gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addSubmitter()}
+            placeholder="e.g. Jane Doe, John Smith, Alex Lee"
+            className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
+          />
+          <button
+            onClick={addSubmitter}
+            disabled={saving || !name.trim()}
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
       </div>
 
       {loading ? (
