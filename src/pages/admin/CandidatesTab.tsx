@@ -10,6 +10,8 @@ export function CandidatesTab() {
   const [query, setQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -28,6 +30,14 @@ export function CandidatesTab() {
     return candidates.filter((c) => `${c.first_name} ${c.last_name}`.toLowerCase().includes(q))
   }, [candidates, query])
 
+  useEffect(() => {
+    setSelected((prev) => {
+      const visibleIds = new Set(filtered.map((c) => c.id))
+      const next = new Set(Array.from(prev).filter((id) => visibleIds.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [filtered])
+
   async function updateCandidate(id: string, patch: Partial<Candidate>) {
     await supabase.from('candidates').update(patch).eq('id', id)
     load()
@@ -39,6 +49,32 @@ export function CandidatesTab() {
     load()
   }
 
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id))))
+  }
+
+  async function deleteSelected() {
+    const count = selected.size
+    if (count === 0) return
+    if (!confirm(`Delete ${count} candidate${count > 1 ? 's' : ''}? This also deletes their comments.`)) return
+    setDeleting(true)
+    await supabase.from('candidates').delete().in('id', Array.from(selected))
+    setSelected(new Set())
+    setDeleting(false)
+    load()
+  }
+
+  const allSelected = filtered.length > 0 && selected.size === filtered.length
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -46,19 +82,39 @@ export function CandidatesTab() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowImport(true)}
-            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium"
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
           >
             Import CSV
           </button>
         </div>
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search candidates…"
-        className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search candidates…"
+          className="w-full max-w-sm rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
+        />
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5">
+            <span className="text-sm text-red-700 font-medium">{selected.size} selected</span>
+            <button
+              onClick={deleteSelected}
+              disabled={deleting}
+              className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              {deleting ? 'Deleting…' : 'Delete selected'}
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <p className="text-sm text-zinc-400">Loading…</p>
@@ -67,6 +123,15 @@ export function CandidatesTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500">
+                <th className="px-4 py-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all"
+                    className="rounded border-zinc-300"
+                  />
+                </th>
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Major</th>
                 <th className="px-4 py-2.5 font-medium">Grad</th>
@@ -80,6 +145,8 @@ export function CandidatesTab() {
                   key={c.id}
                   candidate={c}
                   editing={editingId === c.id}
+                  checked={selected.has(c.id)}
+                  onToggle={() => toggleSelected(c.id)}
                   onEdit={() => setEditingId(c.id)}
                   onCancel={() => setEditingId(null)}
                   onSave={(patch) => {
@@ -112,6 +179,8 @@ export function CandidatesTab() {
 function CandidateRow({
   candidate,
   editing,
+  checked,
+  onToggle,
   onEdit,
   onCancel,
   onSave,
@@ -119,6 +188,8 @@ function CandidateRow({
 }: {
   candidate: Candidate
   editing: boolean
+  checked: boolean
+  onToggle: () => void
   onEdit: () => void
   onCancel: () => void
   onSave: (patch: Partial<Candidate>) => void
@@ -131,6 +202,15 @@ function CandidateRow({
   if (editing) {
     return (
       <tr className="border-b border-zinc-50 bg-indigo-50/40">
+        <td className="px-4 py-2">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={onToggle}
+            aria-label={`Select ${candidate.first_name} ${candidate.last_name}`}
+            className="rounded border-zinc-300"
+          />
+        </td>
         <td className="px-4 py-2 font-medium text-zinc-800">
           {candidate.first_name} {candidate.last_name}
         </td>
@@ -186,7 +266,16 @@ function CandidateRow({
   }
 
   return (
-    <tr className="border-b border-zinc-50">
+    <tr className={`border-b border-zinc-50 ${checked ? 'bg-indigo-50/40' : ''}`}>
+      <td className="px-4 py-2">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          aria-label={`Select ${candidate.first_name} ${candidate.last_name}`}
+          className="rounded border-zinc-300"
+        />
+      </td>
       <td className="px-4 py-2 font-medium text-zinc-800">
         {candidate.first_name} {candidate.last_name}
       </td>

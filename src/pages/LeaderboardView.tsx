@@ -10,7 +10,6 @@ interface Row {
 export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
   const [rows, setRows] = useState<Row[]>([])
   const [totalComments, setTotalComments] = useState(0)
-  const [candidatesCovered, setCandidatesCovered] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -20,15 +19,13 @@ export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
       setLoading(true)
       const [{ data: submitters }, { data: comments }] = await Promise.all([
         supabase.from('submitters').select('*').order('name'),
-        supabase.from('comments').select('submitter_id, candidate_id'),
+        supabase.from('comments').select('submitter_id'),
       ])
       if (cancelled) return
 
       const counts = new Map<string, number>()
-      const candidateSet = new Set<string>()
       for (const c of comments ?? []) {
         counts.set(c.submitter_id, (counts.get(c.submitter_id) ?? 0) + 1)
-        candidateSet.add(c.candidate_id)
       }
 
       const built: Row[] = (submitters ?? [])
@@ -37,7 +34,6 @@ export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
 
       setRows(built)
       setTotalComments(comments?.length ?? 0)
-      setCandidatesCovered(candidateSet.size)
       setLoading(false)
     }
 
@@ -53,15 +49,9 @@ export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
         <h1 className="text-xl font-bold text-zinc-900 mb-4">Leaderboard</h1>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="rounded-lg bg-white border border-zinc-200 p-4">
-          <p className="text-2xl font-bold text-zinc-900">{totalComments}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Total comments</p>
-        </div>
-        <div className="rounded-lg bg-white border border-zinc-200 p-4">
-          <p className="text-2xl font-bold text-zinc-900">{candidatesCovered}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Candidates covered</p>
-        </div>
+      <div className="rounded-lg bg-white border border-zinc-200 p-4 mb-5">
+        <p className="text-2xl font-bold text-zinc-900">{totalComments}</p>
+        <p className="text-xs text-zinc-500 mt-0.5">Total comments</p>
       </div>
 
       {loading && <p className="text-center text-zinc-400 py-12">Loading…</p>}
