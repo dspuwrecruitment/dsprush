@@ -1,3 +1,5 @@
+import { LeaderboardIcon, SearchIcon } from './icons'
+
 interface BottomNavProps {
   tab: 'search' | 'leaderboard'
   onChange: (tab: 'search' | 'leaderboard') => void
@@ -5,12 +7,17 @@ interface BottomNavProps {
 
 export function BottomNav({ tab, onChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-zinc-100 safe-bottom z-30">
+    <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-zinc-200 safe-bottom z-30">
       <div className="max-w-lg mx-auto flex">
-        <NavButton label="Search" icon="🔍" active={tab === 'search'} onClick={() => onChange('search')} />
+        <NavButton
+          label="Search"
+          icon={SearchIcon}
+          active={tab === 'search'}
+          onClick={() => onChange('search')}
+        />
         <NavButton
           label="Leaderboard"
-          icon="🏆"
+          icon={LeaderboardIcon}
           active={tab === 'leaderboard'}
           onClick={() => onChange('leaderboard')}
         />
@@ -21,23 +28,23 @@ export function BottomNav({ tab, onChange }: BottomNavProps) {
 
 function NavButton({
   label,
-  icon,
+  icon: Icon,
   active,
   onClick,
 }: {
   label: string
-  icon: string
+  icon: (props: { className?: string }) => React.JSX.Element
   active: boolean
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+      className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors ${
         active ? 'text-indigo-600' : 'text-zinc-400'
       }`}
     >
-      <span className="text-lg leading-none">{icon}</span>
+      <Icon className="w-5 h-5" />
       {label}
     </button>
   )

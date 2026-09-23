@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { SubmittersTab } from './admin/SubmittersTab'
 import { CandidatesTab } from './admin/CandidatesTab'
 import { CommentsTab } from './admin/CommentsTab'
+import { ChevronLeftIcon } from '../components/icons'
 
 type Tab = 'candidates' | 'submitters' | 'comments'
 
@@ -11,14 +12,15 @@ export function AdminApp() {
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <header className="bg-white border-b border-zinc-100 px-6 py-4">
+      <header className="bg-white border-b border-zinc-200 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
             <p className="text-xs text-zinc-400 font-medium">DSP Rush</p>
             <h1 className="text-xl font-bold text-zinc-900">SVP View</h1>
           </div>
-          <Link to="/" className="text-sm text-indigo-600 font-medium">
-            ← Back to app
+          <Link to="/" className="flex items-center gap-1 text-sm text-indigo-600 font-medium hover:text-indigo-700">
+            <ChevronLeftIcon className="w-4 h-4" />
+            Back to app
           </Link>
         </div>
         <nav className="max-w-5xl mx-auto flex gap-1 mt-4">

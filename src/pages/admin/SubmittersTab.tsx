@@ -68,7 +68,7 @@ export function SubmittersTab() {
           {submitters.map((s) => (
             <div
               key={s.id}
-              className="flex items-center gap-3 bg-white border border-zinc-100 rounded-xl px-4 py-2.5"
+              className="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-2.5"
             >
               <span className={`flex-1 text-sm ${s.active ? 'text-zinc-800' : 'text-zinc-400 line-through'}`}>
                 {s.name}

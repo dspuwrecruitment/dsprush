@@ -12,9 +12,9 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border border-zinc-100 shadow-sm active:scale-95 active:bg-zinc-50 transition-all text-left"
+      className="flex flex-col items-center gap-2 p-3 rounded-lg bg-white border border-zinc-200 hover:border-zinc-300 active:bg-zinc-50 transition-colors text-left"
     >
-      <div className="w-16 h-16 rounded-full bg-zinc-100 overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-zinc-100">
+      <div className="w-16 h-16 rounded-full bg-zinc-100 overflow-hidden flex items-center justify-center shrink-0">
         {src ? (
           <img src={src} alt="" loading="lazy" className="w-full h-full object-cover" />
         ) : (

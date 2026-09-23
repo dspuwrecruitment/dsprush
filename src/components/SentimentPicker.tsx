@@ -16,10 +16,10 @@ export function SentimentPicker({ value, onChange }: SentimentPickerProps) {
             key={s.value}
             type="button"
             onClick={() => onChange(s.value)}
-            className={`px-3.5 py-2 rounded-full text-sm font-medium border transition-all ${
+            className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
               active
-                ? `${colors.bg} text-white border-transparent shadow-sm`
-                : 'bg-white text-zinc-600 border-zinc-200 active:bg-zinc-50'
+                ? `${colors.bg} text-white border-transparent`
+                : 'bg-white text-zinc-600 border-zinc-300 hover:bg-zinc-50'
             }`}
           >
             {s.label}

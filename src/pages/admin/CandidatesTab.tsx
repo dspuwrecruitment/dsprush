@@ -63,10 +63,10 @@ export function CandidatesTab() {
       {loading ? (
         <p className="text-sm text-zinc-400">Loading…</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-100 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-zinc-500">
+              <tr className="border-b border-zinc-200 text-left text-zinc-500">
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Major</th>
                 <th className="px-4 py-2.5 font-medium">Grad</th>

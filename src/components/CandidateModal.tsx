@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { photoSrc } from '../lib/photo'
 import type { Candidate, Sentiment, Submitter } from '../lib/types'
 import { SentimentPicker } from './SentimentPicker'
+import { CheckIcon, CloseIcon } from './icons'
 
 interface CandidateModalProps {
   candidate: Candidate
@@ -63,22 +64,23 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto safe-bottom">
-        <div className="sticky top-0 bg-white/95 backdrop-blur flex justify-end p-3 z-10">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60">
+      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl border border-zinc-200 shadow-lg max-h-[92vh] overflow-y-auto safe-bottom">
+        <div className="sticky top-0 bg-white border-b border-zinc-100 flex justify-between items-center px-5 py-3 z-10">
+          <span className="text-sm font-medium text-zinc-500">Candidate</span>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center active:bg-zinc-200"
+            className="w-8 h-8 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100 active:bg-zinc-200"
           >
-            ✕
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 pb-8 flex flex-col gap-5">
+        <div className="px-6 pt-5 pb-8 flex flex-col gap-5">
           {mode !== 'done' && (
-            <div className="flex flex-col items-center gap-3 -mt-2">
-              <div className="w-28 h-28 rounded-full bg-zinc-100 overflow-hidden ring-4 ring-zinc-50 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-28 h-28 rounded-full bg-zinc-100 overflow-hidden ring-1 ring-zinc-200 flex items-center justify-center">
                 {src ? (
                   <img src={src} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -108,7 +110,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
           {mode === 'view' && (
             <button
               onClick={() => setMode('comment')}
-              className="w-full rounded-xl bg-indigo-600 py-3.5 text-white font-medium active:bg-indigo-700 transition-colors"
+              className="w-full rounded-lg bg-indigo-600 py-3 text-white font-medium hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
             >
               Submit Comment
             </button>
@@ -128,7 +130,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
                   onChange={(e) => setText(e.target.value)}
                   rows={4}
                   placeholder="Share your thoughts..."
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base text-zinc-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-base text-zinc-900 outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 resize-none"
                 />
               </div>
 
@@ -139,7 +141,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
                 <select
                   value={submitterId}
                   onChange={(e) => setSubmitterId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base text-zinc-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-base text-zinc-900 outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
                 >
                   <option value="">Select your name</option>
                   {submitters.map((s) => (
@@ -155,7 +157,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full rounded-xl bg-indigo-600 py-3.5 text-white font-medium active:bg-indigo-700 disabled:opacity-60 transition-colors"
+                className="w-full rounded-lg bg-indigo-600 py-3 text-white font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>
@@ -164,8 +166,8 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
 
           {mode === 'done' && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl">
-                ✓
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center ring-1 ring-emerald-200">
+                <CheckIcon className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-semibold text-zinc-900">Comment submitted</h2>
               <p className="text-sm text-zinc-500">
@@ -173,7 +175,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
               </p>
               <button
                 onClick={onClose}
-                className="mt-2 w-full rounded-xl bg-zinc-900 py-3 text-white font-medium active:bg-zinc-800 transition-colors"
+                className="mt-2 w-full rounded-lg bg-zinc-900 py-2.5 text-white font-medium hover:bg-zinc-800 active:bg-zinc-700 transition-colors"
               >
                 Back to search
               </button>

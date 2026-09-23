@@ -52,7 +52,7 @@ export function CommentsTab() {
           {filtered.map((c) => {
             const colors = SENTIMENT_COLORS[c.sentiment]
             return (
-              <div key={c.id} className="bg-white border border-zinc-100 rounded-xl px-4 py-3">
+              <div key={c.id} className="bg-white border border-zinc-200 rounded-lg px-4 py-3">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-zinc-800 text-sm">
