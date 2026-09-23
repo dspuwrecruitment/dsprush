@@ -168,29 +168,34 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       .filter((r): r is CandidateRecord => r !== null)
   }, [canImport, dataRows, headers, mapping, nameMode, firstNameCol, lastNameCol, fullNameCol])
 
-  const duplicates = useMemo(() => {
-    const seenInBatch = new Map<string, number>()
-    const dupeNames = new Set<string>()
-    for (const r of records) {
+  const recordsWithDupeFlag = useMemo(() => {
+    const seenInBatch = new Set<string>()
+    return records.map((r) => {
       const key = `${r.first_name} ${r.last_name}`.trim().toLowerCase()
-      if (existingNames.has(key)) dupeNames.add(`${r.first_name} ${r.last_name}`)
-      seenInBatch.set(key, (seenInBatch.get(key) ?? 0) + 1)
-    }
-    for (const [key, count] of seenInBatch) {
-      if (count > 1) {
-        const original = records.find((r) => `${r.first_name} ${r.last_name}`.trim().toLowerCase() === key)
-        if (original) dupeNames.add(`${original.first_name} ${original.last_name}`)
-      }
-    }
-    return Array.from(dupeNames).sort()
+      const isDuplicate = existingNames.has(key) || seenInBatch.has(key)
+      seenInBatch.add(key)
+      return { record: r, isDuplicate }
+    })
   }, [records, existingNames])
 
-  async function runImport() {
+  const duplicates = useMemo(() => {
+    const names = new Set<string>()
+    for (const { record, isDuplicate } of recordsWithDupeFlag) {
+      if (isDuplicate) names.add(`${record.first_name} ${record.last_name}`)
+    }
+    return Array.from(names).sort()
+  }, [recordsWithDupeFlag])
+
+  async function runImport(mode: 'all' | 'skip-duplicates') {
+    const toInsert =
+      mode === 'skip-duplicates'
+        ? recordsWithDupeFlag.filter((r) => !r.isDuplicate).map((r) => r.record)
+        : records
     setImporting(true)
-    const { error } = await supabase.from('candidates').insert(records)
+    const { error } = await supabase.from('candidates').insert(toInsert)
     setImporting(false)
     if (!error) {
-      setResult({ inserted: records.length, skipped: dataRows.length - records.length })
+      setResult({ inserted: toInsert.length, skipped: dataRows.length - toInsert.length })
       onImported()
     }
   }
@@ -201,7 +206,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       setConfirmingDuplicates(true)
       return
     }
-    runImport()
+    runImport('all')
   }
 
   return (
@@ -378,34 +383,47 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                       <li key={n}>{n}</li>
                     ))}
                   </ul>
-                  <p className="text-sm text-amber-800">Import anyway and create duplicate candidates?</p>
+                  <p className="text-sm text-amber-800">
+                    Skip them and import the rest, or import everything including duplicates?
+                  </p>
                 </div>
               )}
 
               <div className="flex gap-2">
-                {confirmingDuplicates && duplicates.length > 0 && (
+                {confirmingDuplicates && duplicates.length > 0 ? (
+                  <>
+                    <button
+                      onClick={() => setConfirmingDuplicates(false)}
+                      className="rounded-lg border border-zinc-300 px-4 py-2.5 text-zinc-700 font-medium hover:bg-zinc-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => runImport('skip-duplicates')}
+                      disabled={importing}
+                      className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {importing
+                        ? 'Importing…'
+                        : `Skip duplicates, import ${recordsWithDupeFlag.filter((r) => !r.isDuplicate).length}`}
+                    </button>
+                    <button
+                      onClick={() => runImport('all')}
+                      disabled={importing}
+                      className="flex-1 rounded-lg bg-amber-600 py-2.5 text-white font-medium hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {importing ? 'Importing…' : `Import all ${records.length}`}
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={() => setConfirmingDuplicates(false)}
-                    className="flex-1 rounded-lg border border-zinc-300 py-2.5 text-zinc-700 font-medium hover:bg-zinc-50"
+                    onClick={handleImportClick}
+                    disabled={!canImport || importing}
+                    className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    Cancel
+                    {importing ? 'Importing…' : `Import ${dataRows.length || ''} candidates`}
                   </button>
                 )}
-                <button
-                  onClick={handleImportClick}
-                  disabled={!canImport || importing}
-                  className={`flex-1 rounded-lg py-2.5 text-white font-medium disabled:opacity-50 ${
-                    confirmingDuplicates && duplicates.length > 0
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
-                >
-                  {importing
-                    ? 'Importing…'
-                    : confirmingDuplicates && duplicates.length > 0
-                      ? 'Import anyway'
-                      : `Import ${dataRows.length || ''} candidates`}
-                </button>
               </div>
             </>
           ) : (
@@ -415,7 +433,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
               </div>
               <p className="text-zinc-800 font-medium">
                 Imported {result.inserted} candidates
-                {result.skipped > 0 && ` (${result.skipped} skipped, missing name)`}
+                {result.skipped > 0 && ` (${result.skipped} skipped)`}
               </p>
               <button
                 onClick={onClose}
