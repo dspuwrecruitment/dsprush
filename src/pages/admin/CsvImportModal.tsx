@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseCsv } from '../../lib/csv'
 import { supabase } from '../../lib/supabase'
 import { CheckIcon, CloseIcon } from '../../components/icons'
@@ -70,6 +70,10 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const [result, setResult] = useState<{ inserted: number; skipped: number } | null>(null)
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set())
   const [confirmingDuplicates, setConfirmingDuplicates] = useState(false)
+  const [fileName, setFileName] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const [fileError, setFileError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     supabase
@@ -116,6 +120,30 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
     setConfirmingDuplicates(false)
     const parsed = parseCsv(text)
     if (parsed[0]) guessMapping(parsed[0])
+  }
+
+  function loadFile(file: File) {
+    setFileError('')
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
+      setFileError('That doesn\'t look like a CSV file. Please drop a .csv export.')
+      return
+    }
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = () => {
+      handlePaste(String(reader.result ?? ''))
+    }
+    reader.onerror = () => {
+      setFileError('Could not read that file. Try again or paste the CSV contents directly.')
+    }
+    reader.readAsText(file)
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) loadFile(file)
   }
 
   function resetConfirmation() {
@@ -226,15 +254,55 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
           {!result ? (
             <>
               <p className="text-sm text-zinc-500">
-                Export your Google Sheet as CSV (File → Download → Comma Separated Values) and paste the contents
-                below, including the header row. Major and grad year/quarter are randomly assigned for any
-                candidate missing them.
+                Export your Google Sheet as CSV (File → Download → Comma Separated Values), then drag the file in
+                or paste its contents below, including the header row. Major and grad year/quarter are randomly
+                assigned for any candidate missing them.
               </p>
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`rounded-lg border-2 border-dashed px-4 py-5 text-center cursor-pointer transition-colors ${
+                  isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-zinc-300 hover:border-zinc-400 bg-zinc-50'
+                }`}
+              >
+                <p className="text-sm text-zinc-600">
+                  {fileName ? (
+                    <>
+                      Loaded <span className="font-medium text-zinc-800">{fileName}</span> — drop another file to
+                      replace it
+                    </>
+                  ) : (
+                    <>Drag a CSV file here, or click to browse</>
+                  )}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) loadFile(file)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+              {fileError && <p className="text-sm text-red-600">{fileError}</p>}
+
               <textarea
                 value={raw}
-                onChange={(e) => handlePaste(e.target.value)}
+                onChange={(e) => {
+                  setFileName('')
+                  handlePaste(e.target.value)
+                }}
                 rows={6}
-                placeholder="Paste CSV data here…"
+                placeholder="…or paste CSV data here"
                 className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
               />
 
