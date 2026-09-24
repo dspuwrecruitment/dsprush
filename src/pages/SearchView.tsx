@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Candidate } from '../lib/types'
 import { CandidateCard } from '../components/CandidateCard'
@@ -35,7 +36,15 @@ export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => v
   return (
     <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div className="sticky top-0 -mx-4 px-4 pt-[env(safe-area-inset-top)] pb-3 bg-zinc-50 border-b border-zinc-200 z-20">
-        <h1 className="text-xl font-bold text-zinc-900 mb-3">DSP Rush</h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-zinc-900">DSP Rush</h1>
+          <Link
+            to="/admin"
+            className="text-xs font-medium text-zinc-500 border border-zinc-300 rounded-md px-2.5 py-1 hover:bg-zinc-100"
+          >
+            SVP View
+          </Link>
+        </div>
         <input
           type="text"
           value={query}
