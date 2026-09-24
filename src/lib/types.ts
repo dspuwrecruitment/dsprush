@@ -49,6 +49,7 @@ export interface Comment {
   submitter_id: string
   sentiment: Sentiment
   comment_text: string
+  knows_outside_rush: boolean
   created_at: string
 }
 

@@ -61,6 +61,11 @@ export function CommentsTab() {
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-white ${colors.bg}`}>
                       {sentimentLabel(c.sentiment)}
                     </span>
+                    {c.knows_outside_rush && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700">
+                        Knows outside rush
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-zinc-400">
                     {c.submitters?.name ?? 'Unknown'} · {new Date(c.created_at).toLocaleString()}

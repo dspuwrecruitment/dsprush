@@ -19,6 +19,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
   const [submitterId, setSubmitterId] = useState('')
   const [sentiment, setSentiment] = useState<Sentiment | null>(null)
   const [text, setText] = useState('')
+  const [knowsOutsideRush, setKnowsOutsideRush] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,6 +53,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
       submitter_id: submitterId,
       sentiment,
       comment_text: text.trim(),
+      knows_outside_rush: knowsOutsideRush,
     })
     setSubmitting(false)
     if (insertError) {
@@ -133,6 +135,16 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
                   className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-base text-zinc-900 outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 resize-none"
                 />
               </div>
+
+              <label className="flex items-center gap-3 rounded-lg border border-zinc-300 px-3.5 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={knowsOutsideRush}
+                  onChange={(e) => setKnowsOutsideRush(e.target.checked)}
+                  className="w-5 h-5 rounded border-zinc-300 accent-indigo-600"
+                />
+                <span className="text-sm font-medium text-zinc-700">Do you know this candidate outside of rush?</span>
+              </label>
 
               <div>
                 <label className="text-sm font-medium text-zinc-700 mb-2 block">
