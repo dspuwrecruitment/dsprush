@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Candidate } from '../../lib/types'
-import { GRAD_QUARTERS } from '../../lib/types'
 import { CsvImportModal } from './CsvImportModal'
+import { CandidateFormModal } from './CandidateFormModal'
 
 export function CandidatesTab() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [editTarget, setEditTarget] = useState<Candidate | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
 
@@ -38,13 +39,13 @@ export function CandidatesTab() {
     })
   }, [filtered])
 
-  async function updateCandidate(id: string, patch: Partial<Candidate>) {
-    await supabase.from('candidates').update(patch).eq('id', id)
-    load()
-  }
-
   async function removeCandidate(c: Candidate) {
-    if (!confirm(`Delete ${c.first_name} ${c.last_name}? This also deletes their comments.`)) return
+    if (
+      !confirm(
+        `Delete ${c.first_name} ${c.last_name}?\n\nThis removes their comments, pulls them from every reviewer's queue, and deletes any scores they received.`,
+      )
+    )
+      return
     await supabase.from('candidates').delete().eq('id', c.id)
     load()
   }
@@ -65,7 +66,12 @@ export function CandidatesTab() {
   async function deleteSelected() {
     const count = selected.size
     if (count === 0) return
-    if (!confirm(`Delete ${count} candidate${count > 1 ? 's' : ''}? This also deletes their comments.`)) return
+    if (
+      !confirm(
+        `Delete ${count} candidate${count > 1 ? 's' : ''}?\n\nThis removes their comments, pulls them from every reviewer's queue, and deletes any scores they received.`,
+      )
+    )
+      return
     setDeleting(true)
     await supabase.from('candidates').delete().in('id', Array.from(selected))
     setSelected(new Set())
@@ -80,6 +86,15 @@ export function CandidatesTab() {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-lg font-semibold text-zinc-900">Candidates ({candidates.length})</h2>
         <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setEditTarget(null)
+              setShowForm(true)
+            }}
+            className="px-4 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50"
+          >
+            Add candidate
+          </button>
           <button
             onClick={() => setShowImport(true)}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
@@ -106,10 +121,7 @@ export function CandidatesTab() {
             >
               {deleting ? 'Deleting…' : 'Delete selected'}
             </button>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="text-sm text-zinc-500 hover:text-zinc-700"
-            >
+            <button onClick={() => setSelected(new Set())} className="text-sm text-zinc-500 hover:text-zinc-700">
               Clear
             </button>
           </div>
@@ -132,6 +144,7 @@ export function CandidatesTab() {
                     className="rounded border-zinc-300"
                   />
                 </th>
+                <th className="px-4 py-2.5 font-medium">#</th>
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Major</th>
                 <th className="px-4 py-2.5 font-medium">Grad</th>
@@ -144,23 +157,18 @@ export function CandidatesTab() {
                 <CandidateRow
                   key={c.id}
                   candidate={c}
-                  editing={editingId === c.id}
                   checked={selected.has(c.id)}
                   onToggle={() => toggleSelected(c.id)}
-                  onEdit={() => setEditingId(c.id)}
-                  onCancel={() => setEditingId(null)}
-                  onSave={(patch) => {
-                    updateCandidate(c.id, patch)
-                    setEditingId(null)
+                  onEdit={() => {
+                    setEditTarget(c)
+                    setShowForm(true)
                   }}
                   onDelete={() => removeCandidate(c)}
                 />
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && (
-            <p className="text-sm text-zinc-400 px-4 py-6">No candidates found.</p>
-          )}
+          {filtered.length === 0 && <p className="text-sm text-zinc-400 px-4 py-6">No candidates found.</p>}
         </div>
       )}
 
@@ -172,99 +180,35 @@ export function CandidatesTab() {
           }}
         />
       )}
+
+      {showForm && (
+        <CandidateFormModal
+          key={editTarget?.id ?? 'new'}
+          candidate={editTarget}
+          onClose={() => setShowForm(false)}
+          onSaved={() => {
+            setShowForm(false)
+            load()
+          }}
+        />
+      )}
     </div>
   )
 }
 
 function CandidateRow({
   candidate,
-  editing,
   checked,
   onToggle,
   onEdit,
-  onCancel,
-  onSave,
   onDelete,
 }: {
   candidate: Candidate
-  editing: boolean
   checked: boolean
   onToggle: () => void
   onEdit: () => void
-  onCancel: () => void
-  onSave: (patch: Partial<Candidate>) => void
   onDelete: () => void
 }) {
-  const [major, setMajor] = useState(candidate.major ?? '')
-  const [gradYear, setGradYear] = useState(candidate.grad_year?.toString() ?? '')
-  const [gradQuarter, setGradQuarter] = useState(candidate.grad_quarter ?? '')
-
-  if (editing) {
-    return (
-      <tr className="border-b border-zinc-50 bg-indigo-50/40">
-        <td className="px-4 py-2">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={onToggle}
-            aria-label={`Select ${candidate.first_name} ${candidate.last_name}`}
-            className="rounded border-zinc-300"
-          />
-        </td>
-        <td className="px-4 py-2 font-medium text-zinc-800">
-          {candidate.first_name} {candidate.last_name}
-        </td>
-        <td className="px-4 py-2">
-          <input
-            value={major}
-            onChange={(e) => setMajor(e.target.value)}
-            className="w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-          />
-        </td>
-        <td className="px-4 py-2">
-          <div className="flex gap-1">
-            <select
-              value={gradQuarter}
-              onChange={(e) => setGradQuarter(e.target.value)}
-              className="rounded border border-zinc-200 px-1 py-1 text-sm"
-            >
-              <option value="">—</option>
-              {GRAD_QUARTERS.map((q) => (
-                <option key={q} value={q}>
-                  {q}
-                </option>
-              ))}
-            </select>
-            <input
-              value={gradYear}
-              onChange={(e) => setGradYear(e.target.value.replace(/\D/g, ''))}
-              placeholder="Year"
-              className="w-16 rounded border border-zinc-200 px-2 py-1 text-sm"
-            />
-          </div>
-        </td>
-        <td className="px-4 py-2 text-zinc-500">{candidate.email}</td>
-        <td className="px-4 py-2 whitespace-nowrap">
-          <button
-            onClick={() =>
-              onSave({
-                major: major.trim() || null,
-                grad_year: gradYear ? parseInt(gradYear, 10) : null,
-                grad_quarter: (gradQuarter || null) as Candidate['grad_quarter'],
-              })
-            }
-            className="text-indigo-600 font-medium text-xs mr-3"
-          >
-            Save
-          </button>
-          <button onClick={onCancel} className="text-zinc-400 text-xs">
-            Cancel
-          </button>
-        </td>
-      </tr>
-    )
-  }
-
   return (
     <tr className={`border-b border-zinc-50 ${checked ? 'bg-indigo-50/40' : ''}`}>
       <td className="px-4 py-2">
@@ -276,14 +220,15 @@ function CandidateRow({
           className="rounded border-zinc-300"
         />
       </td>
+      <td className="px-4 py-2 text-zinc-500">{candidate.number ?? '-'}</td>
       <td className="px-4 py-2 font-medium text-zinc-800">
         {candidate.first_name} {candidate.last_name}
       </td>
-      <td className="px-4 py-2 text-zinc-600">{candidate.major || '—'}</td>
+      <td className="px-4 py-2 text-zinc-600">{candidate.major || '-'}</td>
       <td className="px-4 py-2 text-zinc-600">
-        {[candidate.grad_quarter, candidate.grad_year].filter(Boolean).join(' ') || '—'}
+        {[candidate.grad_quarter, candidate.grad_year].filter(Boolean).join(' ') || '-'}
       </td>
-      <td className="px-4 py-2 text-zinc-500">{candidate.email || '—'}</td>
+      <td className="px-4 py-2 text-zinc-500">{candidate.email || '-'}</td>
       <td className="px-4 py-2 whitespace-nowrap">
         <button onClick={onEdit} className="text-indigo-600 font-medium text-xs mr-3">
           Edit

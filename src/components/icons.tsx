@@ -40,3 +40,34 @@ export function ChevronLeftIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function DotsIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <circle cx="10" cy="4" r="1.6" />
+      <circle cx="10" cy="10" r="1.6" />
+      <circle cx="10" cy="16" r="1.6" />
+    </svg>
+  )
+}
+
+export function GripIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <circle cx="7" cy="5" r="1.4" />
+      <circle cx="13" cy="5" r="1.4" />
+      <circle cx="7" cy="10" r="1.4" />
+      <circle cx="13" cy="10" r="1.4" />
+      <circle cx="7" cy="15" r="1.4" />
+      <circle cx="13" cy="15" r="1.4" />
+    </svg>
+  )
+}
+
+export function ChevronDownIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} stroke="currentColor" strokeWidth="1.8">
+      <path d="M5 8L10 13L15 8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}

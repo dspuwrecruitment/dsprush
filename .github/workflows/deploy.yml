@@ -30,6 +30,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_APP_PASSWORD: ${{ secrets.VITE_APP_PASSWORD }}
           VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
+          VITE_RC_PASSWORD: ${{ secrets.VITE_RC_PASSWORD }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

@@ -2,7 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseCsv } from '../../lib/csv'
 import { supabase } from '../../lib/supabase'
 import { CheckIcon, CloseIcon } from '../../components/icons'
-import type { GradQuarter } from '../../lib/types'
+import type { AnswerItem, GradQuarter, SummaryItem } from '../../lib/types'
+import {
+  fetchActiveMembers,
+  fetchLoads,
+  getNextNumber,
+  getNextRankOrder,
+  insertAssignments,
+  normalizeQuarter,
+  planAssignments,
+  REVIEWERS_PER_CANDIDATE,
+} from '../../lib/rc'
 
 interface CsvImportModalProps {
   onClose: () => void
@@ -12,45 +22,31 @@ interface CsvImportModalProps {
 const OTHER_FIELD_DEFS = [
   { key: 'email', label: 'Email' },
   { key: 'photo_url', label: 'Photo Link (Google Drive)' },
-  { key: 'major', label: 'Major (optional — random if left blank)' },
-  { key: 'grad_year', label: 'Grad Year (optional — random if left blank)' },
-  { key: 'grad_quarter', label: 'Grad Quarter (optional — random if left blank)' },
+  { key: 'video_url', label: 'Video Link (Google Drive)' },
+  { key: 'major', label: 'Major' },
+  { key: 'grad_year', label: 'Grad Year' },
+  { key: 'grad_quarter', label: 'Grad Quarter' },
 ] as const
 
 type OtherFieldKey = (typeof OTHER_FIELD_DEFS)[number]['key']
 type NameMode = 'separate' | 'full'
+type ColumnRole = 'summary' | 'answer' | 'ignore'
 
 interface CandidateRecord {
   first_name: string
   last_name: string
   email: string | null
   photo_url: string | null
-  major: string
-  grad_year: number
-  grad_quarter: GradQuarter
+  video_url: string | null
+  major: string | null
+  grad_year: number | null
+  grad_quarter: GradQuarter | null
+  summary: SummaryItem[]
+  answers: AnswerItem[]
 }
 
-const RANDOM_MAJORS = [
-  'Admitted Business',
-  'Intended Business',
-  'Admitted Informatics',
-  'Intended Informatics',
-  'Admitted Economics',
-  'Intended Economics',
-]
-
-const RANDOM_GRAD_OPTIONS: { quarter: GradQuarter; year: number }[] = [
-  { quarter: 'Fall', year: 2026 },
-  { quarter: 'Winter', year: 2027 },
-  { quarter: 'Spring', year: 2027 },
-]
-
-function randomMajor() {
-  return RANDOM_MAJORS[Math.floor(Math.random() * RANDOM_MAJORS.length)]
-}
-
-function randomGrad() {
-  return RANDOM_GRAD_OPTIONS[Math.floor(Math.random() * RANDOM_GRAD_OPTIONS.length)]
+function defaultRole(header: string): ColumnRole {
+  return header.toLowerCase().includes('timestamp') ? 'ignore' : 'answer'
 }
 
 export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
@@ -62,6 +58,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const [mapping, setMapping] = useState<Record<OtherFieldKey, string>>({
     email: '',
     photo_url: '',
+    video_url: '',
     major: '',
     grad_year: '',
     grad_quarter: '',
@@ -70,6 +67,9 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const [result, setResult] = useState<{ inserted: number; skipped: number } | null>(null)
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set())
   const [confirmingDuplicates, setConfirmingDuplicates] = useState(false)
+  const [roles, setRoles] = useState<Record<string, ColumnRole>>({})
+  const [memberCount, setMemberCount] = useState<number | null>(null)
+  const [importError, setImportError] = useState('')
   const [fileName, setFileName] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState('')
@@ -82,6 +82,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       .then(({ data }) => {
         setExistingNames(new Set((data ?? []).map((c) => `${c.first_name} ${c.last_name}`.trim().toLowerCase())))
       })
+    fetchActiveMembers().then((members) => setMemberCount(members.length))
   }, [])
 
   const rows = useMemo(() => parseCsv(raw), [raw])
@@ -98,6 +99,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       if (lower.includes('first')) first = h
       else if (lower.includes('last')) last = h
       else if (lower.includes('email')) next.email = h
+      else if (lower.includes('video')) next.video_url = h
       else if (lower.includes('photo') || lower.includes('image') || lower.includes('upload')) next.photo_url = h
       else if (lower.includes('major')) next.major = h
       else if (lower.includes('year')) next.grad_year = h
@@ -153,6 +155,17 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const canImport =
     dataRows.length > 0 && (nameMode === 'separate' ? firstNameCol && lastNameCol : !!fullNameCol)
 
+  const unmappedHeaders = useMemo(() => {
+    const mapped = new Set<string>(Object.values(mapping).filter(Boolean))
+    if (nameMode === 'separate') {
+      mapped.add(firstNameCol)
+      mapped.add(lastNameCol)
+    } else {
+      mapped.add(fullNameCol)
+    }
+    return headers.filter((h) => !mapped.has(h))
+  }, [headers, mapping, nameMode, firstNameCol, lastNameCol, fullNameCol])
+
   const records = useMemo<CandidateRecord[]>(() => {
     if (!canImport) return []
     const idx = (key: OtherFieldKey) => headers.indexOf(mapping[key])
@@ -176,25 +189,33 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
         if (!firstName) return null
 
         const yearRaw = idx('grad_year') >= 0 ? r[idx('grad_year')]?.trim() : ''
-        const quarterRaw = idx('grad_quarter') >= 0 ? r[idx('grad_quarter')]?.trim() : ''
         const parsedYear = yearRaw ? parseInt(yearRaw, 10) : NaN
-        const hasGrad = Number.isFinite(parsedYear) && !!quarterRaw
-        const grad = hasGrad ? { year: parsedYear, quarter: quarterRaw as GradQuarter } : randomGrad()
-
         const majorRaw = idx('major') >= 0 ? r[idx('major')]?.trim() : ''
+
+        const summary: SummaryItem[] = []
+        const answers: AnswerItem[] = []
+        for (const h of unmappedHeaders) {
+          const role = roles[h] ?? defaultRole(h)
+          const value = r[headers.indexOf(h)]?.trim() ?? ''
+          if (role === 'summary' && value) summary.push({ label: h, value })
+          if (role === 'answer') answers.push({ question: h, answer: value })
+        }
 
         return {
           first_name: firstName,
           last_name: lastName,
           email: idx('email') >= 0 ? r[idx('email')]?.trim() || null : null,
           photo_url: idx('photo_url') >= 0 ? r[idx('photo_url')]?.trim() || null : null,
-          major: majorRaw || randomMajor(),
-          grad_year: grad.year,
-          grad_quarter: grad.quarter,
+          video_url: idx('video_url') >= 0 ? r[idx('video_url')]?.trim() || null : null,
+          major: majorRaw || null,
+          grad_year: Number.isFinite(parsedYear) ? parsedYear : null,
+          grad_quarter: idx('grad_quarter') >= 0 ? normalizeQuarter(r[idx('grad_quarter')]) : null,
+          summary,
+          answers,
         }
       })
       .filter((r): r is CandidateRecord => r !== null)
-  }, [canImport, dataRows, headers, mapping, nameMode, firstNameCol, lastNameCol, fullNameCol])
+  }, [canImport, dataRows, headers, mapping, nameMode, firstNameCol, lastNameCol, fullNameCol, unmappedHeaders, roles])
 
   const recordsWithDupeFlag = useMemo(() => {
     const seenInBatch = new Set<string>()
@@ -219,13 +240,48 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       mode === 'skip-duplicates'
         ? recordsWithDupeFlag.filter((r) => !r.isDuplicate).map((r) => r.record)
         : records
-    setImporting(true)
-    const { error } = await supabase.from('candidates').insert(toInsert)
-    setImporting(false)
-    if (!error) {
-      setResult({ inserted: toInsert.length, skipped: dataRows.length - toInsert.length })
-      onImported()
+    if (toInsert.length === 0) {
+      setImportError('There are no candidates to import.')
+      return
     }
+    setImporting(true)
+    setImportError('')
+
+    const members = await fetchActiveMembers()
+    if (members.length < REVIEWERS_PER_CANDIDATE) {
+      setImporting(false)
+      setImportError(`Add at least ${REVIEWERS_PER_CANDIDATE} RC members before importing.`)
+      return
+    }
+
+    const startNumber = await getNextNumber()
+    const startRank = await getNextRankOrder()
+    const withNumbers = toInsert.map((r, i) => ({
+      ...r,
+      number: startNumber + i,
+      rank_order: startRank === null ? null : startRank + i,
+    }))
+
+    const { data: inserted, error } = await supabase.from('candidates').insert(withNumbers).select('id')
+    if (error || !inserted) {
+      setImporting(false)
+      setImportError(error?.message ?? 'Import failed.')
+      return
+    }
+
+    const ids = inserted.map((c) => c.id as string)
+    const plan = planAssignments(ids, members, await fetchLoads(members))
+    const assignError = await insertAssignments(plan)
+    if (assignError) {
+      await supabase.from('candidates').delete().in('id', ids)
+      setImporting(false)
+      setImportError(`Reviewer assignment failed, so this import was rolled back: ${assignError}`)
+      return
+    }
+
+    setImporting(false)
+    setResult({ inserted: toInsert.length, skipped: dataRows.length - toInsert.length })
+    onImported()
   }
 
   function handleImportClick() {
@@ -255,9 +311,15 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
             <>
               <p className="text-sm text-zinc-500">
                 Export your Google Sheet as CSV (File → Download → Comma Separated Values), then drag the file in
-                or paste its contents below, including the header row. Major and grad year/quarter are randomly
-                assigned for any candidate missing them.
+                or paste its contents below, including the header row. Each candidate is numbered and assigned to{' '}
+                {REVIEWERS_PER_CANDIDATE} RC reviewers.
               </p>
+              {memberCount !== null && memberCount < REVIEWERS_PER_CANDIDATE && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Add at least {REVIEWERS_PER_CANDIDATE} RC members in the RC Members tab before importing. There are
+                  currently {memberCount}.
+                </div>
+              )}
 
               <div
                 onDragOver={(e) => {
@@ -436,8 +498,37 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                       ))}
                     </div>
                   </div>
+
+                  {unmappedHeaders.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-medium text-zinc-700">Remaining columns</p>
+                      <p className="text-xs text-zinc-500">
+                        Summary values show in the RC row and first screen. Long answers get their own screen.
+                      </p>
+                      <div className="flex flex-col divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+                        {unmappedHeaders.map((h) => (
+                          <div key={h} className="flex items-center justify-between gap-3 px-3 py-2">
+                            <span className="text-sm text-zinc-700 truncate" title={h}>
+                              {h}
+                            </span>
+                            <select
+                              value={roles[h] ?? defaultRole(h)}
+                              onChange={(e) => setRoles({ ...roles, [h]: e.target.value as ColumnRole })}
+                              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-600 shrink-0"
+                            >
+                              <option value="summary">Summary</option>
+                              <option value="answer">Long answer</option>
+                              <option value="ignore">Ignore</option>
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {importError && <p className="text-sm text-red-600">{importError}</p>}
 
               {confirmingDuplicates && duplicates.length > 0 && (
                 <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2">
@@ -468,7 +559,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                     </button>
                     <button
                       onClick={() => runImport('skip-duplicates')}
-                      disabled={importing}
+                      disabled={importing || memberCount === null || memberCount < REVIEWERS_PER_CANDIDATE}
                       className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
                     >
                       {importing
@@ -477,7 +568,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                     </button>
                     <button
                       onClick={() => runImport('all')}
-                      disabled={importing}
+                      disabled={importing || memberCount === null || memberCount < REVIEWERS_PER_CANDIDATE}
                       className="flex-1 rounded-lg bg-amber-600 py-2.5 text-white font-medium hover:bg-amber-700 disabled:opacity-50"
                     >
                       {importing ? 'Importing…' : `Import all ${records.length}`}
@@ -486,7 +577,9 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 ) : (
                   <button
                     onClick={handleImportClick}
-                    disabled={!canImport || importing}
+                    disabled={
+                      !canImport || importing || memberCount === null || memberCount < REVIEWERS_PER_CANDIDATE
+                    }
                     className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
                   >
                     {importing ? 'Importing…' : `Import ${dataRows.length || ''} candidates`}
@@ -500,7 +593,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 <CheckIcon className="w-6 h-6" />
               </div>
               <p className="text-zinc-800 font-medium">
-                Imported {result.inserted} candidates
+                Imported {result.inserted} candidates and assigned each to {REVIEWERS_PER_CANDIDATE} reviewers
                 {result.skipped > 0 && ` (${result.skipped} skipped)`}
               </p>
               <button

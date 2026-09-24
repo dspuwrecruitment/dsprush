@@ -34,6 +34,36 @@ export interface Candidate {
   grad_quarter: GradQuarter | null
   photo_url: string | null
   created_at: string
+  number?: number | null
+  summary?: SummaryItem[]
+  answers?: AnswerItem[]
+  video_url?: string | null
+  score_rank?: number | null
+  rank_order?: number | null
+  moved_down?: boolean
+}
+
+export interface SummaryItem {
+  label: string
+  value: string
+}
+
+export interface AnswerItem {
+  question: string
+  answer: string
+}
+
+export interface RcMember {
+  id: string
+  name: string
+  removed_at: string | null
+  created_at: string
+}
+
+export interface RankingState {
+  id: number
+  cut_size: number
+  locked_at: string | null
 }
 
 export interface Submitter {

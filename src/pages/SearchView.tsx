@@ -15,7 +15,7 @@ export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => v
     setLoading(true)
     const { data } = await supabase
       .from('candidates')
-      .select('*')
+      .select('id, first_name, last_name, email, major, grad_year, grad_quarter, photo_url, created_at')
       .order('first_name')
     setCandidates(data ?? [])
     setLoading(false)
@@ -39,10 +39,10 @@ export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => v
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-zinc-900">DSP Rush</h1>
           <Link
-            to="/admin"
+            to="/"
             className="text-xs font-medium text-zinc-500 border border-zinc-300 rounded-md px-2.5 py-1 hover:bg-zinc-100"
           >
-            SVP View
+            Switch role
           </Link>
         </div>
         <input
