@@ -130,43 +130,58 @@ export function LeaderboardTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <h2 className="text-lg font-semibold text-zinc-900">Leaderboard ({candidates.length})</h2>
-        <div className="flex items-center gap-4">
-          {locked && (
-            <p className="text-sm text-zinc-500">
-              Above the line{' '}
-              <span className={`text-base font-bold ${cut > CUT_LINE_LIMIT ? 'text-red-600' : 'text-zinc-900'}`}>
-                {cut}/{CUT_LINE_LIMIT}
+      <div className="sticky top-0 z-30 -mx-6 px-6 pt-2 bg-zinc-50 border-b border-zinc-200">
+        <div className="flex items-center justify-between gap-3 pb-2 flex-wrap">
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-base font-semibold text-zinc-900">Leaderboard ({candidates.length})</h2>
+            {!locked && (
+              <span className="text-xs text-zinc-500">
+                Live ranking by average score. Lock it to set the cut line at {CUT_LINE_LIMIT} and enable moves.
               </span>
-            </p>
-          )}
-          <button
-            onClick={lockRanking}
-            disabled={busy || candidates.length === 0}
-            className={
-              locked
-                ? 'text-sm font-medium text-zinc-500 hover:text-zinc-700 disabled:opacity-50'
-                : 'px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50'
-            }
-          >
-            {locked ? 'Re-lock ranking' : 'Lock ranking'}
-          </button>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            {locked && (
+              <p className="text-sm text-zinc-500">
+                Above the line{' '}
+                <span className={`text-base font-bold ${cut > CUT_LINE_LIMIT ? 'text-red-600' : 'text-zinc-900'}`}>
+                  {cut}/{CUT_LINE_LIMIT}
+                </span>
+              </p>
+            )}
+            <button
+              onClick={lockRanking}
+              disabled={busy || candidates.length === 0}
+              className={
+                locked
+                  ? 'text-sm font-medium text-zinc-500 hover:text-zinc-700 disabled:opacity-50'
+                  : 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50'
+              }
+            >
+              {locked ? 'Re-lock ranking' : 'Lock ranking'}
+            </button>
+          </div>
+        </div>
+        <div className={`${ROW_GRID} pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400`}>
+          <span />
+          <span className="text-right">Rank</span>
+          <span>Name</span>
+          <span>App</span>
+          <span>Major</span>
+          <span>Grad</span>
+          <span className="text-right">Avg</span>
+          <span className="text-center">Scored</span>
+          <span />
+          <span />
         </div>
       </div>
 
-      {!locked && (
-        <p className="text-sm text-zinc-500 mb-4">
-          Ranking is live and follows average scores. Lock it when scoring is finished to set the cut line at{' '}
-          {CUT_LINE_LIMIT} and enable moving candidates.
-        </p>
-      )}
-      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-      {candidates.length === 0 && <p className="text-sm text-zinc-400">No candidates yet.</p>}
+      {error && <p className="text-sm text-red-600 my-2">{error}</p>}
+      {candidates.length === 0 && <p className="text-sm text-zinc-400 mt-3">No candidates yet.</p>}
 
       {menuId && <div className="fixed inset-0 z-10" onClick={() => setMenuId(null)} />}
 
-      <div className="flex flex-col gap-2">
+      <div className="mt-2 mb-12 rounded-lg border border-zinc-200 bg-white">
         {ordered.map((c, i) => {
           const isAbove = locked && i < cut
           const greyed = locked && !isAbove && c.moved_down
@@ -183,6 +198,7 @@ export function LeaderboardTab() {
                 />
               )}
               <div
+                data-row={c.id}
                 onDragOver={(e) => {
                   if (!dragId) return
                   e.preventDefault()
@@ -193,9 +209,9 @@ export function LeaderboardTab() {
                   e.preventDefault()
                   dropOnRow(c)
                 }}
-                className={`rounded-lg border bg-white ${
-                  overId === c.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-zinc-200'
-                } ${greyed ? 'opacity-60' : ''}`}
+                className={`border-b border-zinc-100 last:border-b-0 ${overId === c.id ? 'bg-indigo-50' : ''} ${
+                  greyed ? 'opacity-60' : ''
+                }`}
               >
                 <div
                   draggable={locked && !busy}
@@ -208,58 +224,72 @@ export function LeaderboardTab() {
                     setDragId(null)
                     setOverId(null)
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5"
+                  className={`${ROW_GRID} text-[13px] leading-6 hover:bg-zinc-50`}
                 >
-                  {locked && <GripIcon className="w-4 h-4 text-zinc-300 shrink-0 cursor-grab" />}
-                  <span className="w-10 shrink-0 text-sm font-semibold text-zinc-400 text-right">
+                  {locked ? (
+                    <GripIcon className="w-3.5 h-3.5 text-zinc-300 cursor-grab" />
+                  ) : (
+                    <span />
+                  )}
+                  <span className="text-right font-semibold text-zinc-400">
                     #{locked ? (c.score_rank ?? '-') : i + 1}
                   </span>
-                  <button onClick={() => toggleExpanded(c.id)} className="flex-1 min-w-0 text-left">
-                    <span className="font-medium text-zinc-900">
-                      {c.first_name} {c.last_name}
-                    </span>
-                    <span className="ml-2 text-xs text-zinc-400">App #{c.number ?? '-'}</span>
+                  <button
+                    onClick={() => toggleExpanded(c.id)}
+                    className="text-left truncate font-medium text-zinc-900"
+                    title={`${c.first_name} ${c.last_name}`}
+                  >
+                    {c.first_name} {c.last_name}
                   </button>
-                  <span className="w-14 text-right text-sm font-semibold text-zinc-800">
+                  <span className="text-xs text-zinc-400">#{c.number ?? '-'}</span>
+                  <span className="truncate text-zinc-600" title={c.major ?? ''}>
+                    {c.major ?? '-'}
+                  </span>
+                  <span className="text-zinc-600">
+                    {[c.grad_quarter, c.grad_year].filter(Boolean).join(' ') || '-'}
+                  </span>
+                  <span className="text-right font-semibold text-zinc-800">
                     {avg === null ? '-' : avg.toFixed(2)}
                   </span>
                   <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                    className={`justify-self-center text-[11px] font-medium leading-4 px-1.5 rounded-full border ${
                       scored >= REVIEWERS_PER_CANDIDATE
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                         : 'border-amber-200 bg-amber-50 text-amber-800'
                     }`}
                   >
-                    {scored}/{REVIEWERS_PER_CANDIDATE} scored
+                    {scored}/{REVIEWERS_PER_CANDIDATE}
                   </span>
-                  {locked && (
+                  {locked ? (
                     <div className="relative">
                       <button
                         onClick={() => setMenuId(menuId === c.id ? null : c.id)}
                         aria-label="Move options"
-                        className="w-8 h-8 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100 relative z-20"
+                        className="w-6 h-6 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100 relative z-20"
                       >
-                        <DotsIcon className="w-4 h-4" />
+                        <DotsIcon className="w-3.5 h-3.5" />
                       </button>
                       {menuId === c.id && (
-                        <div className="absolute right-0 top-9 z-20 w-32 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
+                        <div className="absolute right-0 top-6 z-20 w-32 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
                           <button
                             onClick={() => (isAbove ? move(c.id, cut, false) : move(c.id, cut + 1, true))}
                             disabled={busy}
-                            className="w-full text-left px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                            className="w-full text-left px-3 py-1.5 text-sm leading-5 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
                           >
                             {isAbove ? 'Move Down' : 'Move Up'}
                           </button>
                         </div>
                       )}
                     </div>
+                  ) : (
+                    <span />
                   )}
                   <button
                     onClick={() => toggleExpanded(c.id)}
                     aria-label={isOpen ? 'Collapse' : 'Expand'}
-                    className="w-8 h-8 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100"
+                    className="w-6 h-6 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100"
                   >
-                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
                 {isOpen && <Detail candidate={c} />}
@@ -274,6 +304,9 @@ export function LeaderboardTab() {
     </div>
   )
 }
+
+const ROW_GRID =
+  'grid items-center gap-x-2 px-2 grid-cols-[16px_48px_minmax(0,1.3fr)_44px_minmax(0,1fr)_92px_48px_52px_24px_24px]'
 
 function CutLine({
   active,
@@ -294,10 +327,10 @@ function CutLine({
         e.preventDefault()
         onDrop()
       }}
-      className={`flex items-center gap-3 py-1.5 ${active ? 'text-indigo-600' : 'text-red-500'}`}
+      className={`flex items-center gap-3 px-2 py-1 ${active ? 'text-indigo-600 bg-indigo-50' : 'text-red-500'}`}
     >
       <div className={`flex-1 border-t-2 border-dashed ${active ? 'border-indigo-500' : 'border-red-400'}`} />
-      <span className="text-xs font-semibold uppercase tracking-wide">Cut line</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide">Cut line</span>
       <div className={`flex-1 border-t-2 border-dashed ${active ? 'border-indigo-500' : 'border-red-400'}`} />
     </div>
   )

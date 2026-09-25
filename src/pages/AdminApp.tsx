@@ -11,11 +11,12 @@ type Tab = 'candidates' | 'rc' | 'leaderboard' | 'submitters' | 'comments'
 
 export function AdminApp() {
   const [tab, setTab] = useState<Tab>('candidates')
+  const width = tab === 'leaderboard' ? 'max-w-[96rem]' : 'max-w-5xl'
 
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="bg-white border-b border-zinc-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className={`${width} mx-auto flex items-center justify-between`}>
           <div>
             <p className="text-xs text-zinc-400 font-medium">DSP Rush</p>
             <h1 className="text-xl font-bold text-zinc-900">SVP View</h1>
@@ -25,7 +26,7 @@ export function AdminApp() {
             Switch role
           </Link>
         </div>
-        <nav className="max-w-5xl mx-auto flex gap-1 mt-4">
+        <nav className={`${width} mx-auto flex gap-1 mt-4`}>
           <TabButton label="Candidates" active={tab === 'candidates'} onClick={() => setTab('candidates')} />
           <TabButton label="RC Members" active={tab === 'rc'} onClick={() => setTab('rc')} />
           <TabButton label="Leaderboard" active={tab === 'leaderboard'} onClick={() => setTab('leaderboard')} />
@@ -34,7 +35,7 @@ export function AdminApp() {
         </nav>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-6">
+      <main className={`${width} mx-auto px-6 py-6`}>
         {tab === 'candidates' && <CandidatesTab />}
         {tab === 'rc' && <RcMembersTab />}
         {tab === 'leaderboard' && <LeaderboardTab />}
