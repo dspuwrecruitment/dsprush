@@ -128,11 +128,11 @@ export function RcApp() {
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200 px-4 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3 py-3">
+      <header className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200 px-6 pt-[env(safe-area-inset-top)]">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 py-4">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900">Recruitment Committee</h1>
-            <Link to="/" className="text-xs font-medium text-zinc-500 hover:text-zinc-700">
+            <h1 className="text-2xl font-bold text-zinc-900">Recruitment Committee</h1>
+            <Link to="/" className="text-sm font-medium text-zinc-500 hover:text-zinc-700">
               Switch role
             </Link>
           </div>
@@ -140,7 +140,7 @@ export function RcApp() {
             value={validMemberId}
             onChange={(e) => chooseMember(e.target.value)}
             aria-label="Reviewer"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 outline-none focus:ring-2 focus:ring-indigo-600"
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base font-medium text-zinc-800 outline-none focus:ring-2 focus:ring-indigo-600"
           >
             {members.map((m) => (
               <option key={m.id} value={m.id}>
@@ -151,8 +151,8 @@ export function RcApp() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-4 pb-16">
-        <p className="text-sm text-zinc-500 mb-3">
+      <main className="max-w-6xl mx-auto px-6 py-6 pb-16">
+        <p className="text-base text-zinc-500 mb-4">
           {scoredCount} of {assignments.length} scored
         </p>
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
@@ -179,15 +179,17 @@ export function RcApp() {
                 onKeyDown={(e) => {
                   if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) setOpenId(a.id)
                 }}
-                className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                className={`flex items-center gap-5 rounded-lg border px-5 py-3.5 cursor-pointer transition-colors ${
                   scored
                     ? 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50'
                     : 'border-zinc-200 bg-white hover:bg-zinc-50'
                 }`}
               >
+                <p className="w-40 shrink-0 text-base font-semibold text-zinc-900">
+                  Application #{a.candidates.number ?? '-'}
+                </p>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-zinc-900">Application #{a.candidates.number ?? '-'}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-zinc-500">
+                  <div className="flex flex-wrap gap-x-5 gap-y-0.5 text-[15px] text-zinc-600">
                     {items.length === 0 && <span>No summary</span>}
                     {items.map((i, idx) => (
                       <span key={idx}>

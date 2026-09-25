@@ -89,7 +89,7 @@ export function RcMembersTab() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-2xl">
       <h2 className="text-lg font-semibold text-zinc-900 mb-1">Recruitment Committee ({members.length})</h2>
       <p className="text-sm text-zinc-500 mb-4">
         Candidates are assigned across these members at import. At least 3 members are required to import.

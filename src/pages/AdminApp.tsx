@@ -11,7 +11,7 @@ type Tab = 'candidates' | 'rc' | 'leaderboard' | 'submitters' | 'comments'
 
 export function AdminApp() {
   const [tab, setTab] = useState<Tab>('candidates')
-  const width = tab === 'leaderboard' ? 'max-w-[96rem]' : 'max-w-5xl'
+  const width = tab === 'leaderboard' ? 'max-w-[96rem]' : 'max-w-7xl'
 
   return (
     <div className="min-h-screen bg-zinc-50">

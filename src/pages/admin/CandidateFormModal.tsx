@@ -131,7 +131,7 @@ export function CandidateFormModal({ candidate, onClose, onSaved }: CandidateFor
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-2xl bg-white rounded-xl border border-zinc-200 shadow-lg max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-3xl bg-white rounded-xl border border-zinc-200 shadow-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900">{editing ? 'Edit Candidate' : 'Add Candidate'}</h2>
           <button

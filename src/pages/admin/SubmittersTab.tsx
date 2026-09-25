@@ -77,7 +77,7 @@ export function SubmittersTab() {
   const allSelected = submitters.length > 0 && selected.size === submitters.length
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-2xl">
       <h2 className="text-lg font-semibold text-zinc-900 mb-4">Submitters</h2>
 
       <div className="flex flex-col gap-2 mb-6">
