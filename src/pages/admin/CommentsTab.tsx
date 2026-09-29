@@ -6,8 +6,10 @@ export function CommentsTab() {
   const [comments, setComments] = useState<CommentWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  useEffect(() => {
+  function load() {
     supabase
       .from('comments')
       .select('*, candidates(id, first_name, last_name), submitters(id, name)')
@@ -16,7 +18,19 @@ export function CommentsTab() {
         setComments((data as CommentWithRelations[]) ?? [])
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    load()
   }, [])
+
+  async function deleteComment(id: string) {
+    setDeletingId(id)
+    const { error } = await supabase.from('comments').delete().eq('id', id)
+    setDeletingId(null)
+    setConfirmingId(null)
+    if (!error) setComments((prev) => prev.filter((c) => c.id !== id))
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -66,12 +80,48 @@ export function CommentsTab() {
                         Knows outside rush
                       </span>
                     )}
+                    {c.was_coffee_chat && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800">
+                        Coffee chat
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs text-zinc-400">
-                    {c.submitters?.name ?? 'Unknown'} · {new Date(c.created_at).toLocaleString()}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-zinc-400">
+                      {c.submitters?.name ?? 'Unknown'} · {new Date(c.created_at).toLocaleString()}
+                    </span>
+                    {confirmingId !== c.id && (
+                      <button
+                        onClick={() => setConfirmingId(c.id)}
+                        className="text-xs font-medium text-red-500 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {c.comment_text && <p className="text-sm text-zinc-600 mt-1.5">{c.comment_text}</p>}
+                {confirmingId === c.id && (
+                  <div className="mt-2.5 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                    <span className="text-sm text-red-800">
+                      Permanently delete this comment
+                      {c.candidates ? ` on ${c.candidates.first_name} ${c.candidates.last_name}` : ''}?
+                    </span>
+                    <button
+                      onClick={() => deleteComment(c.id)}
+                      disabled={deletingId === c.id}
+                      className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-md px-3 py-1"
+                    >
+                      {deletingId === c.id ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmingId(null)}
+                      className="text-sm font-medium text-zinc-600 hover:text-zinc-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}

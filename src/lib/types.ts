@@ -50,6 +50,7 @@ export interface Comment {
   sentiment: Sentiment
   comment_text: string
   knows_outside_rush: boolean
+  was_coffee_chat: boolean
   created_at: string
 }
 

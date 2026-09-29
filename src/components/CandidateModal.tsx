@@ -20,6 +20,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
   const [sentiment, setSentiment] = useState<Sentiment | null>(null)
   const [text, setText] = useState('')
   const [knowsOutsideRush, setKnowsOutsideRush] = useState(false)
+  const [wasCoffeeChat, setWasCoffeeChat] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -54,6 +55,7 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
       sentiment,
       comment_text: text.trim(),
       knows_outside_rush: knowsOutsideRush,
+      was_coffee_chat: wasCoffeeChat,
     })
     setSubmitting(false)
     if (insertError) {
@@ -144,6 +146,16 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
                   className="w-5 h-5 rounded border-zinc-300 accent-indigo-600"
                 />
                 <span className="text-sm font-medium text-zinc-700">Do you know this candidate outside of rush?</span>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-lg border border-zinc-300 px-3.5 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={wasCoffeeChat}
+                  onChange={(e) => setWasCoffeeChat(e.target.checked)}
+                  className="w-5 h-5 rounded border-zinc-300 accent-indigo-600"
+                />
+                <span className="text-sm font-medium text-zinc-700">Was this a DSP Coffee Chat?</span>
               </label>
 
               <div>
