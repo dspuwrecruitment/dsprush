@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { CandidateList } from '../lib/types'
-import { CANDIDATE_LISTS } from '../lib/types'
 
 interface MetricCandidate {
   major: string | null
@@ -35,8 +33,7 @@ function buildBuckets(labels: string[]): Bucket[] {
   return Array.from(counts.entries()).map(([label, count]) => ({ label, count }))
 }
 
-export function MetricsView({ listKey }: { listKey: CandidateList }) {
-  const list = CANDIDATE_LISTS.find((l) => l.key === listKey)!
+export function MetricsView() {
   const [candidates, setCandidates] = useState<MetricCandidate[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -46,7 +43,7 @@ export function MetricsView({ listKey }: { listKey: CandidateList }) {
     supabase
       .from('candidates')
       .select('major, grad_quarter, grad_year')
-      .eq(list.column, true)
+      .eq('is_rush_candidate', true)
       .then(({ data }) => {
         if (cancelled) return
         setCandidates(data ?? [])
@@ -55,7 +52,7 @@ export function MetricsView({ listKey }: { listKey: CandidateList }) {
     return () => {
       cancelled = true
     }
-  }, [listKey, list.column])
+  }, [])
 
   const gradBuckets = useMemo(
     () => buildBuckets(candidates.map(gradLabel)).sort((a, b) => gradSortKey(a.label) - gradSortKey(b.label)),
@@ -72,7 +69,7 @@ export function MetricsView({ listKey }: { listKey: CandidateList }) {
     <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div className="pt-[env(safe-area-inset-top)]">
         <h1 className="text-xl font-bold text-zinc-900">Metrics</h1>
-        <p className="text-xs text-zinc-500 mb-4">{list.label}</p>
+        <p className="text-xs text-zinc-500 mb-4">Candidates</p>
       </div>
 
       <div className="rounded-lg bg-white border border-zinc-200 p-4 mb-5">

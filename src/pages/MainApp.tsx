@@ -48,7 +48,7 @@ export function MainApp() {
           onCommentSubmitted={() => setRefreshKey((k) => k + 1)}
         />
       )}
-      {tab === 'metrics' && <MetricsView listKey={listKey} />}
+      {tab === 'metrics' && <MetricsView />}
       {tab === 'leaderboard' && <LeaderboardView listKey={listKey} refreshKey={refreshKey} />}
       <BottomNav tab={tab} onChange={setTab} />
     </div>
