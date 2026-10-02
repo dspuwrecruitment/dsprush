@@ -12,8 +12,8 @@ interface CsvImportModalProps {
 const OTHER_FIELD_DEFS = [
   { key: 'email', label: 'Email' },
   { key: 'photo_url', label: 'Photo Link (Google Drive)' },
-  { key: 'major', label: 'Major (optional — random if left blank)' },
-  { key: 'grad_date', label: 'Grad Date, e.g. "Spring 2027" (optional — random if left blank)' },
+  { key: 'major', label: 'Major (optional)' },
+  { key: 'grad_date', label: 'Grad Date, e.g. "Spring 2027" (optional)' },
 ] as const
 
 type OtherFieldKey = (typeof OTHER_FIELD_DEFS)[number]['key']
@@ -24,32 +24,9 @@ interface CandidateRecord {
   last_name: string
   email: string | null
   photo_url: string | null
-  major: string
-  grad_year: number
-  grad_quarter: GradQuarter
-}
-
-const RANDOM_MAJORS = [
-  'Admitted Business',
-  'Intended Business',
-  'Admitted Informatics',
-  'Intended Informatics',
-  'Admitted Economics',
-  'Intended Economics',
-]
-
-const RANDOM_GRAD_OPTIONS: { quarter: GradQuarter; year: number }[] = [
-  { quarter: 'Fall', year: 2026 },
-  { quarter: 'Winter', year: 2027 },
-  { quarter: 'Spring', year: 2027 },
-]
-
-function randomMajor() {
-  return RANDOM_MAJORS[Math.floor(Math.random() * RANDOM_MAJORS.length)]
-}
-
-function randomGrad() {
-  return RANDOM_GRAD_OPTIONS[Math.floor(Math.random() * RANDOM_GRAD_OPTIONS.length)]
+  major: string | null
+  grad_year: number | null
+  grad_quarter: GradQuarter | null
 }
 
 function parseGradDate(raw: string | undefined): { quarter: GradQuarter; year: number } | null {
@@ -187,7 +164,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
         if (!firstName) return null
 
         const gradRaw = idx('grad_date') >= 0 ? r[idx('grad_date')] : undefined
-        const grad = parseGradDate(gradRaw) ?? randomGrad()
+        const grad = parseGradDate(gradRaw)
 
         const majorRaw = idx('major') >= 0 ? r[idx('major')]?.trim() : ''
 
@@ -196,9 +173,9 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
           last_name: lastName,
           email: idx('email') >= 0 ? r[idx('email')]?.trim() || null : null,
           photo_url: idx('photo_url') >= 0 ? r[idx('photo_url')]?.trim() || null : null,
-          major: majorRaw || randomMajor(),
-          grad_year: grad.year,
-          grad_quarter: grad.quarter,
+          major: majorRaw || null,
+          grad_year: grad?.year ?? null,
+          grad_quarter: grad?.quarter ?? null,
         }
       })
       .filter((r): r is CandidateRecord => r !== null)
@@ -264,7 +241,8 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
               <p className="text-sm text-zinc-500">
                 Export your Google Sheet as CSV (File → Download → Comma Separated Values), then drag the file in
                 or paste its contents below, including the header row. Grad date should read like "Spring 2027"
-                in a single column. Major and grad date are randomly assigned for any candidate missing them.
+                in a single column. Major and grad date are left blank for any candidate missing them — no
+                placeholder values are generated.
               </p>
 
               <div
