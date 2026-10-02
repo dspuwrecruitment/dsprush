@@ -34,7 +34,16 @@ export interface Candidate {
   grad_quarter: GradQuarter | null
   photo_url: string | null
   created_at: string
+  is_coffee_chat: boolean
+  is_rush_candidate: boolean
 }
+
+export type CandidateList = 'rush' | 'coffee_chat'
+
+export const CANDIDATE_LISTS: { key: CandidateList; label: string; column: 'is_rush_candidate' | 'is_coffee_chat' }[] = [
+  { key: 'rush', label: 'Candidates', column: 'is_rush_candidate' },
+  { key: 'coffee_chat', label: 'Coffee Chat Candidates', column: 'is_coffee_chat' },
+]
 
 export interface Submitter {
   id: string

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Submitter } from '../lib/types'
+import type { CandidateList, Submitter } from '../lib/types'
+import { CANDIDATE_LISTS } from '../lib/types'
 
 interface Row {
   submitter: Submitter
   count: number
 }
 
-export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
+export function LeaderboardView({ listKey, refreshKey }: { listKey: CandidateList; refreshKey: number }) {
+  const list = CANDIDATE_LISTS.find((l) => l.key === listKey)!
   const [rows, setRows] = useState<Row[]>([])
   const [totalComments, setTotalComments] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -19,7 +21,7 @@ export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
       setLoading(true)
       const [{ data: submitters }, { data: comments }] = await Promise.all([
         supabase.from('submitters').select('*').order('name'),
-        supabase.from('comments').select('submitter_id'),
+        supabase.from('comments').select('submitter_id, candidates!inner(id)').eq(`candidates.${list.column}`, true),
       ])
       if (cancelled) return
 
@@ -41,12 +43,13 @@ export function LeaderboardView({ refreshKey }: { refreshKey: number }) {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [refreshKey, listKey, list.column])
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div className="pt-[env(safe-area-inset-top)]">
-        <h1 className="text-xl font-bold text-zinc-900 mb-4">Leaderboard</h1>
+        <h1 className="text-xl font-bold text-zinc-900">Leaderboard</h1>
+        <p className="text-xs text-zinc-500 mb-4">{list.label}</p>
       </div>
 
       <div className="rounded-lg bg-white border border-zinc-200 p-4 mb-5">

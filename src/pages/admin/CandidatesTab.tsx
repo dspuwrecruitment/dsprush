@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Candidate } from '../../lib/types'
-import { GRAD_QUARTERS } from '../../lib/types'
+import type { Candidate, CandidateList } from '../../lib/types'
+import { CANDIDATE_LISTS, GRAD_QUARTERS } from '../../lib/types'
 import { CsvImportModal } from './CsvImportModal'
 
-export function CandidatesTab() {
+export function CandidatesTab({ listKey }: { listKey: CandidateList }) {
+  const list = CANDIDATE_LISTS.find((l) => l.key === listKey)!
+  const otherList = CANDIDATE_LISTS.find((l) => l.key !== listKey)!
+
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -15,14 +18,18 @@ export function CandidatesTab() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('candidates').select('*').order('first_name')
+    const { data } = await supabase.from('candidates').select('*').eq(list.column, true).order('first_name')
     setCandidates(data ?? [])
     setLoading(false)
   }
 
   useEffect(() => {
     load()
-  }, [])
+    setSelected(new Set())
+    setEditingId(null)
+    setQuery('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -43,8 +50,17 @@ export function CandidatesTab() {
     load()
   }
 
+  function deleteWarning(names: string[], alsoInOtherList: boolean) {
+    const who = names.length === 1 ? names[0] : `${names.length} candidates`
+    const crossListNote = alsoInOtherList
+      ? ` At least one of them is also in ${otherList.label} — deleting removes them entirely, from both lists.`
+      : ''
+    return `Delete ${who}? This also deletes their comments.${crossListNote}`
+  }
+
   async function removeCandidate(c: Candidate) {
-    if (!confirm(`Delete ${c.first_name} ${c.last_name}? This also deletes their comments.`)) return
+    const alsoInOther = listKey === 'rush' ? c.is_coffee_chat : c.is_rush_candidate
+    if (!confirm(deleteWarning([`${c.first_name} ${c.last_name}`], alsoInOther))) return
     await supabase.from('candidates').delete().eq('id', c.id)
     load()
   }
@@ -65,7 +81,9 @@ export function CandidatesTab() {
   async function deleteSelected() {
     const count = selected.size
     if (count === 0) return
-    if (!confirm(`Delete ${count} candidate${count > 1 ? 's' : ''}? This also deletes their comments.`)) return
+    const targets = filtered.filter((c) => selected.has(c.id))
+    const alsoInOther = targets.some((c) => (listKey === 'rush' ? c.is_coffee_chat : c.is_rush_candidate))
+    if (!confirm(deleteWarning(targets.map((c) => `${c.first_name} ${c.last_name}`), alsoInOther))) return
     setDeleting(true)
     await supabase.from('candidates').delete().in('id', Array.from(selected))
     setSelected(new Set())
@@ -78,7 +96,9 @@ export function CandidatesTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="text-lg font-semibold text-zinc-900">Candidates ({candidates.length})</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">
+          {list.label} ({candidates.length})
+        </h2>
         <div className="flex gap-2">
           <button
             onClick={() => setShowImport(true)}
@@ -136,6 +156,7 @@ export function CandidatesTab() {
                 <th className="px-4 py-2.5 font-medium">Major</th>
                 <th className="px-4 py-2.5 font-medium">Grad</th>
                 <th className="px-4 py-2.5 font-medium">Email</th>
+                <th className="px-4 py-2.5 font-medium">Also in</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
@@ -144,6 +165,8 @@ export function CandidatesTab() {
                 <CandidateRow
                   key={c.id}
                   candidate={c}
+                  otherListLabel={otherList.label}
+                  isAlsoInOtherList={listKey === 'rush' ? c.is_coffee_chat : c.is_rush_candidate}
                   editing={editingId === c.id}
                   checked={selected.has(c.id)}
                   onToggle={() => toggleSelected(c.id)}
@@ -166,6 +189,7 @@ export function CandidatesTab() {
 
       {showImport && (
         <CsvImportModal
+          listKey={listKey}
           onClose={() => setShowImport(false)}
           onImported={() => {
             load()
@@ -178,6 +202,8 @@ export function CandidatesTab() {
 
 function CandidateRow({
   candidate,
+  otherListLabel,
+  isAlsoInOtherList,
   editing,
   checked,
   onToggle,
@@ -187,6 +213,8 @@ function CandidateRow({
   onDelete,
 }: {
   candidate: Candidate
+  otherListLabel: string
+  isAlsoInOtherList: boolean
   editing: boolean
   checked: boolean
   onToggle: () => void
@@ -244,6 +272,7 @@ function CandidateRow({
           </div>
         </td>
         <td className="px-4 py-2 text-zinc-500">{candidate.email}</td>
+        <td className="px-4 py-2 text-zinc-400 text-xs">{isAlsoInOtherList ? otherListLabel : '—'}</td>
         <td className="px-4 py-2 whitespace-nowrap">
           <button
             onClick={() =>
@@ -284,6 +313,13 @@ function CandidateRow({
         {[candidate.grad_quarter, candidate.grad_year].filter(Boolean).join(' ') || '—'}
       </td>
       <td className="px-4 py-2 text-zinc-500">{candidate.email || '—'}</td>
+      <td className="px-4 py-2 text-xs">
+        {isAlsoInOtherList ? (
+          <span className="text-indigo-600 font-medium">{otherListLabel}</span>
+        ) : (
+          <span className="text-zinc-300">—</span>
+        )}
+      </td>
       <td className="px-4 py-2 whitespace-nowrap">
         <button onClick={onEdit} className="text-indigo-600 font-medium text-xs mr-3">
           Edit

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseCsv } from '../../lib/csv'
 import { supabase } from '../../lib/supabase'
 import { CheckIcon, CloseIcon } from '../../components/icons'
-import { GRAD_QUARTERS, type GradQuarter } from '../../lib/types'
+import { buildNameMap, normalizeName, resolveMatch, type MatchCandidate } from '../../lib/candidateMatch'
+import { GRAD_QUARTERS, type CandidateList, type GradQuarter } from '../../lib/types'
 
 interface CsvImportModalProps {
+  listKey: CandidateList
   onClose: () => void
   onImported: () => void
 }
@@ -29,6 +31,19 @@ interface CandidateRecord {
   grad_quarter: GradQuarter | null
 }
 
+interface ExistingCandidate extends MatchCandidate {
+  major: string | null
+  grad_year: number | null
+  grad_quarter: GradQuarter | null
+  photo_url: string | null
+}
+
+type ClassifiedRow =
+  | { record: CandidateRecord; kind: 'new' }
+  | { record: CandidateRecord; kind: 'ambiguous' }
+  | { record: CandidateRecord; kind: 'duplicate' }
+  | { record: CandidateRecord; kind: 'merge'; match: ExistingCandidate }
+
 function parseGradDate(raw: string | undefined): { quarter: GradQuarter; year: number } | null {
   const trimmed = raw?.trim()
   if (!trimmed) return null
@@ -43,7 +58,20 @@ function parseGradDate(raw: string | undefined): { quarter: GradQuarter; year: n
   return tryParse(a, b) ?? tryParse(b, a)
 }
 
-export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
+const LIST_LABEL: Record<CandidateList, string> = {
+  rush: 'Candidates',
+  coffee_chat: 'Coffee Chat Candidates',
+}
+const LIST_COLUMN: Record<CandidateList, 'is_rush_candidate' | 'is_coffee_chat'> = {
+  rush: 'is_rush_candidate',
+  coffee_chat: 'is_coffee_chat',
+}
+const OTHER_LIST_LABEL: Record<CandidateList, string> = {
+  rush: 'Coffee Chat Candidates',
+  coffee_chat: 'Candidates',
+}
+
+export function CsvImportModal({ listKey, onClose, onImported }: CsvImportModalProps) {
   const [raw, setRaw] = useState('')
   const [nameMode, setNameMode] = useState<NameMode>('separate')
   const [firstNameCol, setFirstNameCol] = useState('')
@@ -56,8 +84,11 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
     grad_date: '',
   })
   const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<{ inserted: number; skipped: number } | null>(null)
-  const [existingNames, setExistingNames] = useState<Set<string>>(new Set())
+  const [result, setResult] = useState<{ created: number; merged: number; skipped: number; ambiguous: string[] } | null>(
+    null,
+  )
+  const [importError, setImportError] = useState('')
+  const [existing, setExisting] = useState<ExistingCandidate[]>([])
   const [confirmingDuplicates, setConfirmingDuplicates] = useState(false)
   const [fileName, setFileName] = useState('')
   const [isDragging, setIsDragging] = useState(false)
@@ -67,10 +98,8 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   useEffect(() => {
     supabase
       .from('candidates')
-      .select('first_name, last_name')
-      .then(({ data }) => {
-        setExistingNames(new Set((data ?? []).map((c) => `${c.first_name} ${c.last_name}`.trim().toLowerCase())))
-      })
+      .select('id, first_name, last_name, email, major, grad_year, grad_quarter, photo_url, is_coffee_chat, is_rush_candidate')
+      .then(({ data }) => setExisting((data as ExistingCandidate[]) ?? []))
   }, [])
 
   const rows = useMemo(() => parseCsv(raw), [raw])
@@ -181,41 +210,112 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       .filter((r): r is CandidateRecord => r !== null)
   }, [canImport, dataRows, headers, mapping, nameMode, firstNameCol, lastNameCol, fullNameCol])
 
-  const recordsWithDupeFlag = useMemo(() => {
+  const classified = useMemo<ClassifiedRow[]>(() => {
+    const nameMap = buildNameMap(existing)
     const seenInBatch = new Set<string>()
-    return records.map((r) => {
-      const key = `${r.first_name} ${r.last_name}`.trim().toLowerCase()
-      const isDuplicate = existingNames.has(key) || seenInBatch.has(key)
+    return records.map((record) => {
+      const key = normalizeName(record.first_name, record.last_name)
+      const inBatchDup = seenInBatch.has(key)
       seenInBatch.add(key)
-      return { record: r, isDuplicate }
-    })
-  }, [records, existingNames])
+      if (inBatchDup) return { record, kind: 'duplicate' as const }
 
-  const duplicates = useMemo(() => {
-    const names = new Set<string>()
-    for (const { record, isDuplicate } of recordsWithDupeFlag) {
-      if (isDuplicate) names.add(`${record.first_name} ${record.last_name}`)
+      const { match, ambiguous } = resolveMatch(nameMap, record.first_name, record.last_name, record.email)
+      if (match) {
+        const alreadyInThisList = listKey === 'rush' ? match.is_rush_candidate : match.is_coffee_chat
+        if (alreadyInThisList) return { record, kind: 'duplicate' as const }
+        return { record, kind: 'merge' as const, match }
+      }
+      if (ambiguous) return { record, kind: 'ambiguous' as const }
+      return { record, kind: 'new' as const }
+    })
+  }, [records, existing, listKey])
+
+  const duplicateNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          classified
+            .filter((c): c is Extract<ClassifiedRow, { kind: 'duplicate' }> => c.kind === 'duplicate')
+            .map((c) => `${c.record.first_name} ${c.record.last_name}`),
+        ),
+      ).sort(),
+    [classified],
+  )
+  const mergeCount = useMemo(() => classified.filter((c) => c.kind === 'merge').length, [classified])
+  const ambiguousNames = useMemo(
+    () =>
+      classified
+        .filter((c): c is Extract<ClassifiedRow, { kind: 'ambiguous' }> => c.kind === 'ambiguous')
+        .map((c) => `${c.record.first_name} ${c.record.last_name}`),
+    [classified],
+  )
+  const newCount = useMemo(() => classified.filter((c) => c.kind === 'new').length, [classified])
+
+  function buildInsertRow(record: CandidateRecord) {
+    return { ...record, [LIST_COLUMN[listKey]]: true }
+  }
+
+  function buildMergeUpdate(record: CandidateRecord, match: ExistingCandidate) {
+    const protectExisting = listKey === 'coffee_chat' && match.is_rush_candidate
+    const update: Record<string, unknown> = { [LIST_COLUMN[listKey]]: true }
+    const fields: (keyof CandidateRecord)[] = ['email', 'photo_url', 'major', 'grad_year', 'grad_quarter']
+    for (const f of fields) {
+      const newVal = record[f]
+      if (newVal === null || newVal === undefined) continue
+      if (protectExisting && match[f] !== null && match[f] !== undefined) continue
+      update[f] = newVal
     }
-    return Array.from(names).sort()
-  }, [recordsWithDupeFlag])
+    return update
+  }
 
   async function runImport(mode: 'all' | 'skip-duplicates') {
-    const toInsert =
-      mode === 'skip-duplicates'
-        ? recordsWithDupeFlag.filter((r) => !r.isDuplicate).map((r) => r.record)
-        : records
     setImporting(true)
-    const { error } = await supabase.from('candidates').insert(toInsert)
-    setImporting(false)
-    if (!error) {
-      setResult({ inserted: toInsert.length, skipped: dataRows.length - toInsert.length })
-      onImported()
+    setImportError('')
+
+    const toProcess = mode === 'skip-duplicates' ? classified.filter((c) => c.kind !== 'duplicate') : classified
+    const toInsert = toProcess.filter((c) => c.kind !== 'merge').map((c) => buildInsertRow(c.record))
+    const toMerge = toProcess.filter((c): c is Extract<ClassifiedRow, { kind: 'merge' }> => c.kind === 'merge')
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from('candidates').insert(toInsert)
+      if (error) {
+        setImporting(false)
+        setImportError(error.message)
+        return
+      }
     }
+
+    const mergeResults = await Promise.all(
+      toMerge.map((c) =>
+        supabase
+          .from('candidates')
+          .update(buildMergeUpdate(c.record, c.match))
+          .eq('id', c.match.id),
+      ),
+    )
+    const mergeError = mergeResults.find((r) => r.error)?.error
+    if (mergeError) {
+      setImporting(false)
+      setImportError(mergeError.message)
+      return
+    }
+
+    setImporting(false)
+    const skippedCount = mode === 'skip-duplicates' ? classified.length - toProcess.length : 0
+    setResult({
+      created: toInsert.length,
+      merged: toMerge.length,
+      skipped: skippedCount,
+      ambiguous: toProcess
+        .filter((c): c is Extract<ClassifiedRow, { kind: 'ambiguous' }> => c.kind === 'ambiguous')
+        .map((c) => `${c.record.first_name} ${c.record.last_name}`),
+    })
+    onImported()
   }
 
   function handleImportClick() {
     if (!canImport) return
-    if (duplicates.length > 0 && !confirmingDuplicates) {
+    if (duplicateNames.length > 0 && !confirmingDuplicates) {
       setConfirmingDuplicates(true)
       return
     }
@@ -226,7 +326,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-2xl bg-white rounded-xl border border-zinc-200 shadow-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900">Import Candidates</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Import {LIST_LABEL[listKey]}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full text-zinc-500 flex items-center justify-center hover:bg-zinc-100"
@@ -242,7 +342,9 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 Export your Google Sheet as CSV (File → Download → Comma Separated Values), then drag the file in
                 or paste its contents below, including the header row. Grad date should read like "Spring 2027"
                 in a single column. Major and grad date are left blank for any candidate missing them — no
-                placeholder values are generated.
+                placeholder values are generated. If a name here already exists in {OTHER_LIST_LABEL[listKey]},
+                that person is matched by name (and by email if the name is shared by more than one person) and
+                merged into one record instead of being added twice.
               </p>
 
               <div
@@ -422,18 +524,37 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                       ))}
                     </div>
                   </div>
+
+                  {(newCount > 0 || mergeCount > 0 || ambiguousNames.length > 0) && (
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 flex flex-col gap-1">
+                      {newCount > 0 && <p>{newCount} will be added as new.</p>}
+                      {mergeCount > 0 && (
+                        <p>
+                          {mergeCount} already exist{mergeCount === 1 ? 's' : ''} in {OTHER_LIST_LABEL[listKey]} and
+                          will be merged into that record.
+                        </p>
+                      )}
+                      {ambiguousNames.length > 0 && (
+                        <p className="text-amber-800">
+                          {ambiguousNames.length} share a name with more than one existing candidate and couldn't be
+                          matched by email — added as new, flagged for manual review: {ambiguousNames.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {confirmingDuplicates && duplicates.length > 0 && (
+              {importError && <p className="text-sm text-red-600">{importError}</p>}
+
+              {confirmingDuplicates && duplicateNames.length > 0 && (
                 <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2">
                   <p className="text-sm font-medium text-amber-900">
-                    {duplicates.length} name{duplicates.length > 1 ? 's' : ''} already exist
-                    {duplicates.length === 1 ? 's' : ''} or repeat{duplicates.length === 1 ? 's' : ''} within this
-                    file:
+                    {duplicateNames.length} name{duplicateNames.length > 1 ? 's' : ''} already exist
+                    {duplicateNames.length === 1 ? 's' : ''} in {LIST_LABEL[listKey]} or repeat within this file:
                   </p>
                   <ul className="text-sm text-amber-800 max-h-28 overflow-y-auto list-disc pl-5">
-                    {duplicates.map((n) => (
+                    {duplicateNames.map((n) => (
                       <li key={n}>{n}</li>
                     ))}
                   </ul>
@@ -444,7 +565,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
               )}
 
               <div className="flex gap-2">
-                {confirmingDuplicates && duplicates.length > 0 ? (
+                {confirmingDuplicates && duplicateNames.length > 0 ? (
                   <>
                     <button
                       onClick={() => setConfirmingDuplicates(false)}
@@ -459,14 +580,14 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                     >
                       {importing
                         ? 'Importing…'
-                        : `Skip duplicates, import ${recordsWithDupeFlag.filter((r) => !r.isDuplicate).length}`}
+                        : `Skip duplicates, import ${classified.length - duplicateNames.length}`}
                     </button>
                     <button
                       onClick={() => runImport('all')}
                       disabled={importing}
                       className="flex-1 rounded-lg bg-amber-600 py-2.5 text-white font-medium hover:bg-amber-700 disabled:opacity-50"
                     >
-                      {importing ? 'Importing…' : `Import all ${records.length}`}
+                      {importing ? 'Importing…' : `Import all ${classified.length}`}
                     </button>
                   </>
                 ) : (
@@ -486,9 +607,15 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 <CheckIcon className="w-6 h-6" />
               </div>
               <p className="text-zinc-800 font-medium">
-                Imported {result.inserted} candidates
+                {result.created} candidate{result.created === 1 ? '' : 's'} added
+                {result.merged > 0 && `, ${result.merged} merged into existing records`}
                 {result.skipped > 0 && ` (${result.skipped} skipped)`}
               </p>
+              {result.ambiguous.length > 0 && (
+                <p className="text-sm text-amber-800 max-w-sm">
+                  Possible duplicates needing manual review: {result.ambiguous.join(', ')}
+                </p>
+              )}
               <button
                 onClick={onClose}
                 className="rounded-lg bg-zinc-900 text-white px-6 py-2.5 font-medium hover:bg-zinc-800"

@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { Candidate } from '../lib/types'
+import type { Candidate, CandidateList } from '../lib/types'
+import { CANDIDATE_LISTS } from '../lib/types'
 import { CandidateCard } from '../components/CandidateCard'
 import { CandidateModal } from '../components/CandidateModal'
 
-export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => void }) {
+interface SearchViewProps {
+  listKey: CandidateList
+  onSwitchList: () => void
+  onCommentSubmitted: () => void
+}
+
+export function SearchView({ listKey, onSwitchList, onCommentSubmitted }: SearchViewProps) {
+  const list = CANDIDATE_LISTS.find((l) => l.key === listKey)!
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -13,17 +21,15 @@ export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => v
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase
-      .from('candidates')
-      .select('*')
-      .order('first_name')
+    const { data } = await supabase.from('candidates').select('*').eq(list.column, true).order('first_name')
     setCandidates(data ?? [])
     setLoading(false)
   }
 
   useEffect(() => {
     load()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -37,7 +43,12 @@ export function SearchView({ onCommentSubmitted }: { onCommentSubmitted: () => v
     <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div className="sticky top-0 -mx-4 px-4 pt-[env(safe-area-inset-top)] pb-3 bg-zinc-50 border-b border-zinc-200 z-20">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-zinc-900">DSP Rush</h1>
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900">DSP Rush</h1>
+            <button onClick={onSwitchList} className="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+              {list.label} · Switch list
+            </button>
+          </div>
           <Link
             to="/admin"
             className="text-xs font-medium text-zinc-500 border border-zinc-300 rounded-md px-2.5 py-1 hover:bg-zinc-100"
