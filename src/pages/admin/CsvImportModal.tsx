@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseCsv } from '../../lib/csv'
 import { supabase } from '../../lib/supabase'
 import { CheckIcon, CloseIcon } from '../../components/icons'
-import type { GradQuarter } from '../../lib/types'
+import { GRAD_QUARTERS, type GradQuarter } from '../../lib/types'
 
 interface CsvImportModalProps {
   onClose: () => void
@@ -13,8 +13,7 @@ const OTHER_FIELD_DEFS = [
   { key: 'email', label: 'Email' },
   { key: 'photo_url', label: 'Photo Link (Google Drive)' },
   { key: 'major', label: 'Major (optional — random if left blank)' },
-  { key: 'grad_year', label: 'Grad Year (optional — random if left blank)' },
-  { key: 'grad_quarter', label: 'Grad Quarter (optional — random if left blank)' },
+  { key: 'grad_date', label: 'Grad Date, e.g. "Spring 2027" (optional — random if left blank)' },
 ] as const
 
 type OtherFieldKey = (typeof OTHER_FIELD_DEFS)[number]['key']
@@ -53,6 +52,20 @@ function randomGrad() {
   return RANDOM_GRAD_OPTIONS[Math.floor(Math.random() * RANDOM_GRAD_OPTIONS.length)]
 }
 
+function parseGradDate(raw: string | undefined): { quarter: GradQuarter; year: number } | null {
+  const trimmed = raw?.trim()
+  if (!trimmed) return null
+  const parts = trimmed.split(/\s+/)
+  if (parts.length !== 2) return null
+  const [a, b] = parts
+  const tryParse = (quarterToken: string, yearToken: string) => {
+    const quarter = GRAD_QUARTERS.find((q) => q.toLowerCase() === quarterToken.toLowerCase())
+    const year = parseInt(yearToken, 10)
+    return quarter && Number.isFinite(year) ? { quarter, year } : null
+  }
+  return tryParse(a, b) ?? tryParse(b, a)
+}
+
 export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const [raw, setRaw] = useState('')
   const [nameMode, setNameMode] = useState<NameMode>('separate')
@@ -63,8 +76,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
     email: '',
     photo_url: '',
     major: '',
-    grad_year: '',
-    grad_quarter: '',
+    grad_date: '',
   })
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<{ inserted: number; skipped: number } | null>(null)
@@ -100,8 +112,7 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       else if (lower.includes('email')) next.email = h
       else if (lower.includes('photo') || lower.includes('image') || lower.includes('upload')) next.photo_url = h
       else if (lower.includes('major')) next.major = h
-      else if (lower.includes('year')) next.grad_year = h
-      else if (lower.includes('quarter')) next.grad_quarter = h
+      else if (lower.includes('grad')) next.grad_date = h
       else if (lower.includes('name')) full = h
     }
     setMapping(next)
@@ -175,11 +186,8 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
         }
         if (!firstName) return null
 
-        const yearRaw = idx('grad_year') >= 0 ? r[idx('grad_year')]?.trim() : ''
-        const quarterRaw = idx('grad_quarter') >= 0 ? r[idx('grad_quarter')]?.trim() : ''
-        const parsedYear = yearRaw ? parseInt(yearRaw, 10) : NaN
-        const hasGrad = Number.isFinite(parsedYear) && !!quarterRaw
-        const grad = hasGrad ? { year: parsedYear, quarter: quarterRaw as GradQuarter } : randomGrad()
+        const gradRaw = idx('grad_date') >= 0 ? r[idx('grad_date')] : undefined
+        const grad = parseGradDate(gradRaw) ?? randomGrad()
 
         const majorRaw = idx('major') >= 0 ? r[idx('major')]?.trim() : ''
 
@@ -255,8 +263,8 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
             <>
               <p className="text-sm text-zinc-500">
                 Export your Google Sheet as CSV (File → Download → Comma Separated Values), then drag the file in
-                or paste its contents below, including the header row. Major and grad year/quarter are randomly
-                assigned for any candidate missing them.
+                or paste its contents below, including the header row. Grad date should read like "Spring 2027"
+                in a single column. Major and grad date are randomly assigned for any candidate missing them.
               </p>
 
               <div
