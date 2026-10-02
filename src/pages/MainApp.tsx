@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { BottomNav } from '../components/BottomNav'
 import { SearchView } from './SearchView'
 import { LeaderboardView } from './LeaderboardView'
+import { MetricsView } from './MetricsView'
 import { CANDIDATE_LISTS, type CandidateList } from '../lib/types'
 
 export function MainApp() {
   const [listKey, setListKey] = useState<CandidateList | null>(null)
-  const [tab, setTab] = useState<'search' | 'leaderboard'>('search')
+  const [tab, setTab] = useState<'search' | 'metrics' | 'leaderboard'>('search')
   const [refreshKey, setRefreshKey] = useState(0)
 
   if (!listKey) {
@@ -47,6 +48,7 @@ export function MainApp() {
           onCommentSubmitted={() => setRefreshKey((k) => k + 1)}
         />
       )}
+      {tab === 'metrics' && <MetricsView listKey={listKey} />}
       {tab === 'leaderboard' && <LeaderboardView listKey={listKey} refreshKey={refreshKey} />}
       <BottomNav tab={tab} onChange={setTab} />
     </div>

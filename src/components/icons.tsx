@@ -40,3 +40,13 @@ export function ChevronLeftIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function ChartIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="10" width="3.2" height="7" rx="0.5" />
+      <rect x="8.4" y="6" width="3.2" height="11" rx="0.5" />
+      <rect x="13.8" y="3" width="3.2" height="14" rx="0.5" />
+    </svg>
+  )
+}

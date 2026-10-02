@@ -1,8 +1,8 @@
-import { LeaderboardIcon, SearchIcon } from './icons'
+import { ChartIcon, LeaderboardIcon, SearchIcon } from './icons'
 
 interface BottomNavProps {
-  tab: 'search' | 'leaderboard'
-  onChange: (tab: 'search' | 'leaderboard') => void
+  tab: 'search' | 'metrics' | 'leaderboard'
+  onChange: (tab: 'search' | 'metrics' | 'leaderboard') => void
 }
 
 export function BottomNav({ tab, onChange }: BottomNavProps) {
@@ -14,6 +14,12 @@ export function BottomNav({ tab, onChange }: BottomNavProps) {
           icon={SearchIcon}
           active={tab === 'search'}
           onClick={() => onChange('search')}
+        />
+        <NavButton
+          label="Metrics"
+          icon={ChartIcon}
+          active={tab === 'metrics'}
+          onClick={() => onChange('metrics')}
         />
         <NavButton
           label="Leaderboard"
