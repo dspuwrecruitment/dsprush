@@ -50,6 +50,8 @@ export function ReelsView({ listKey, onCommentSubmitted }: ReelsViewProps) {
           candidate={selected}
           onClose={() => setSelected(null)}
           onSubmitted={onCommentSubmitted}
+          startInCommentMode
+          fullScreen
         />
       )}
     </>

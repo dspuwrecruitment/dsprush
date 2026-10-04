@@ -9,12 +9,20 @@ interface CandidateModalProps {
   candidate: Candidate
   onClose: () => void
   onSubmitted: () => void
+  startInCommentMode?: boolean
+  fullScreen?: boolean
 }
 
 const LAST_SUBMITTER_KEY = 'dsprush_last_submitter_id'
 
-export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateModalProps) {
-  const [mode, setMode] = useState<'view' | 'comment' | 'done'>('view')
+export function CandidateModal({
+  candidate,
+  onClose,
+  onSubmitted,
+  startInCommentMode = false,
+  fullScreen = false,
+}: CandidateModalProps) {
+  const [mode, setMode] = useState<'view' | 'comment' | 'done'>(startInCommentMode ? 'comment' : 'view')
   const [submitters, setSubmitters] = useState<Submitter[]>([])
   const [submitterId, setSubmitterId] = useState('')
   const [sentiment, setSentiment] = useState<Sentiment | null>(null)
@@ -68,9 +76,19 @@ export function CandidateModal({ candidate, onClose, onSubmitted }: CandidateMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60">
-      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl border border-zinc-200 shadow-lg max-h-[92vh] overflow-y-auto safe-bottom">
-        <div className="sticky top-0 bg-white border-b border-zinc-100 flex justify-between items-center px-5 py-3 z-10">
+    <div
+      className={`fixed inset-0 z-50 flex justify-center bg-black/60 ${
+        fullScreen ? 'bg-white' : 'items-end sm:items-center'
+      }`}
+    >
+      <div
+        className={
+          fullScreen
+            ? 'w-full h-dvh bg-white overflow-y-auto'
+            : 'w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl border border-zinc-200 shadow-lg max-h-[92vh] overflow-y-auto safe-bottom'
+        }
+      >
+        <div className="sticky top-0 bg-white border-b border-zinc-100 flex justify-between items-center px-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 z-10">
           <span className="text-sm font-medium text-zinc-500">Candidate</span>
           <button
             onClick={onClose}
