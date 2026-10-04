@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { SENTIMENT_COLORS, SENTIMENTS, type CommentWithRelations, type Sentiment } from '../../lib/types'
+import { copyCommentsForSheets, downloadCommentsCsv } from '../../lib/commentExport'
 
 const SENTIMENT_RANK: Record<Sentiment, number> = {
   very_positive: 0,
@@ -16,6 +17,7 @@ export function CommentsTab() {
   const [query, setQuery] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [exportStatus, setExportStatus] = useState('')
 
   function load() {
     supabase
@@ -81,7 +83,40 @@ export function CommentsTab() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-zinc-900 mb-4">All Comments ({comments.length})</h2>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 className="text-lg font-semibold text-zinc-900">All Comments ({comments.length})</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              setExportStatus('Copying…')
+              try {
+                const n = await copyCommentsForSheets()
+                setExportStatus(`Copied ${n} comments. Paste into a new Google Sheet (Cmd/Ctrl+V).`)
+              } catch (e) {
+                setExportStatus(`Copy failed: ${(e as Error).message}`)
+              }
+            }}
+            className="px-3 py-2 rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Copy for Google Sheets
+          </button>
+          <button
+            onClick={async () => {
+              setExportStatus('Preparing CSV…')
+              try {
+                const n = await downloadCommentsCsv()
+                setExportStatus(`Downloaded ${n} comments as CSV. Import it in Google Sheets via File → Import.`)
+              } catch (e) {
+                setExportStatus(`Download failed: ${(e as Error).message}`)
+              }
+            }}
+            className="px-3 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Download CSV
+          </button>
+        </div>
+      </div>
+      {exportStatus && <p className="text-sm text-zinc-500 -mt-2 mb-4">{exportStatus}</p>}
 
       <input
         value={query}
