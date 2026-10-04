@@ -50,3 +50,20 @@ export function ChartIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function CommentIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4V16H6.5A2.5 2.5 0 0 1 4 13.5v-8z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function ReelsIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="2.5" width="14" height="15" rx="2.5" />
+      <path d="M8.5 7.5L12.5 10L8.5 12.5V7.5z" strokeLinejoin="round" />
+    </svg>
+  )
+}

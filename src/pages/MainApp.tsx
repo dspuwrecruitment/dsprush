@@ -4,11 +4,12 @@ import { BottomNav } from '../components/BottomNav'
 import { SearchView } from './SearchView'
 import { LeaderboardView } from './LeaderboardView'
 import { MetricsView } from './MetricsView'
+import { ReelsView } from './ReelsView'
 import { CANDIDATE_LISTS, type CandidateList } from '../lib/types'
 
 export function MainApp() {
   const [listKey, setListKey] = useState<CandidateList | null>(null)
-  const [tab, setTab] = useState<'search' | 'metrics' | 'leaderboard'>('search')
+  const [tab, setTab] = useState<'search' | 'reels' | 'metrics' | 'leaderboard'>('search')
   const [refreshKey, setRefreshKey] = useState(0)
 
   if (!listKey) {
@@ -47,6 +48,11 @@ export function MainApp() {
           onSwitchList={() => setListKey(null)}
           onCommentSubmitted={() => setRefreshKey((k) => k + 1)}
         />
+      )}
+      {tab === 'reels' && (
+        <div className="pb-[60px]">
+          <ReelsView listKey={listKey} onCommentSubmitted={() => setRefreshKey((k) => k + 1)} />
+        </div>
       )}
       {tab === 'metrics' && <MetricsView />}
       {tab === 'leaderboard' && <LeaderboardView listKey={listKey} refreshKey={refreshKey} />}
