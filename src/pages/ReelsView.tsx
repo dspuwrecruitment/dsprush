@@ -40,9 +40,11 @@ export function ReelsView({ listKey, onCommentSubmitted }: ReelsViewProps) {
   return (
     <>
       <div className="h-[calc(100dvh-60px)] overflow-y-auto snap-y snap-mandatory bg-zinc-900">
+        <div className="mx-auto h-full max-w-lg relative">
         {candidates.map((c) => (
           <ReelCard key={c.id} candidate={c} onComment={() => setSelected(c)} />
         ))}
+        </div>
       </div>
 
       {selected && (
