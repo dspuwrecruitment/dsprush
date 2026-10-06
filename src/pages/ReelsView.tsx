@@ -10,6 +10,15 @@ interface ReelsViewProps {
   onCommentSubmitted: () => void
 }
 
+function shuffle<T>(items: T[]): T[] {
+  const a = [...items]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export function ReelsView({ listKey, onCommentSubmitted }: ReelsViewProps) {
   const list = CANDIDATE_LISTS.find((l) => l.key === listKey)!
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -26,7 +35,7 @@ export function ReelsView({ listKey, onCommentSubmitted }: ReelsViewProps) {
       .order('first_name')
       .then(({ data }) => {
         if (cancelled) return
-        setCandidates(data ?? [])
+        setCandidates(shuffle(data ?? []))
         setLoading(false)
       })
     return () => {
