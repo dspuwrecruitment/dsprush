@@ -84,7 +84,7 @@ export function CsvImportModal({ listKey, onClose, onImported }: CsvImportModalP
     grad_date: '',
   })
   const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<{ created: number; merged: number; skipped: number; ambiguous: string[] } | null>(
+  const [result, setResult] = useState<{ created: number; merged: number; skipped: number; ambiguous: string[]; addedNames: string[]; mergedNames: string[] } | null>(
     null,
   )
   const [importError, setImportError] = useState('')
@@ -309,6 +309,8 @@ export function CsvImportModal({ listKey, onClose, onImported }: CsvImportModalP
       ambiguous: toProcess
         .filter((c): c is Extract<ClassifiedRow, { kind: 'ambiguous' }> => c.kind === 'ambiguous')
         .map((c) => `${c.record.first_name} ${c.record.last_name}`),
+      addedNames: toInsert.map((r) => `${r.first_name} ${r.last_name}`),
+      mergedNames: toMerge.map((c) => `${c.record.first_name} ${c.record.last_name}`),
     })
     onImported()
   }
@@ -611,10 +613,36 @@ export function CsvImportModal({ listKey, onClose, onImported }: CsvImportModalP
                 {result.merged > 0 && `, ${result.merged} merged into existing records`}
                 {result.skipped > 0 && ` (${result.skipped} skipped)`}
               </p>
-              {result.ambiguous.length > 0 && (
-                <p className="text-sm text-amber-800 max-w-sm">
-                  Possible duplicates needing manual review: {result.ambiguous.join(', ')}
-                </p>
+              {result.addedNames.length > 0 && (
+                <div className="w-full text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
+                    New ({result.addedNames.length})
+                  </p>
+                  <ul className="max-h-56 overflow-y-auto rounded-lg border border-zinc-200 divide-y divide-zinc-100 bg-white">
+                    {result.addedNames.map((n, i) => (
+                      <li key={`${n}-${i}`} className="px-3 py-1.5 text-sm text-zinc-800">
+                        {n}
+                        {result.ambiguous.includes(n) && (
+                          <span className="ml-2 text-xs text-amber-800">needs review</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.mergedNames.length > 0 && (
+                <div className="w-full text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
+                    Merged into existing ({result.mergedNames.length})
+                  </p>
+                  <ul className="max-h-40 overflow-y-auto rounded-lg border border-zinc-200 divide-y divide-zinc-100 bg-white">
+                    {result.mergedNames.map((n, i) => (
+                      <li key={`${n}-m-${i}`} className="px-3 py-1.5 text-sm text-zinc-600">
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <button
                 onClick={onClose}
