@@ -4,6 +4,7 @@ import { photoSrc } from '../lib/photo'
 import type { Candidate, Sentiment, Submitter } from '../lib/types'
 import { SentimentPicker } from './SentimentPicker'
 import { CheckIcon, CloseIcon } from './icons'
+import { COMMENTS_ENABLED } from '../lib/featureFlags'
 
 interface CandidateModalProps {
   candidate: Candidate
@@ -22,7 +23,9 @@ export function CandidateModal({
   startInCommentMode = false,
   fullScreen = false,
 }: CandidateModalProps) {
-  const [mode, setMode] = useState<'view' | 'comment' | 'done'>(startInCommentMode ? 'comment' : 'view')
+  const [mode, setMode] = useState<'view' | 'comment' | 'done'>(
+    startInCommentMode && COMMENTS_ENABLED ? 'comment' : 'view',
+  )
   const [submitters, setSubmitters] = useState<Submitter[]>([])
   const [submitterId, setSubmitterId] = useState('')
   const [sentiment, setSentiment] = useState<Sentiment | null>(null)
@@ -51,6 +54,7 @@ export function CandidateModal({
   }, [mode])
 
   async function handleSubmit() {
+    if (!COMMENTS_ENABLED) return
     if (!sentiment || !submitterId) {
       setError('Select who you are and a sentiment before submitting.')
       return
@@ -129,13 +133,19 @@ export function CandidateModal({
             </div>
           )}
 
-          {mode === 'view' && (
+          {mode === 'view' && COMMENTS_ENABLED && (
             <button
               onClick={() => setMode('comment')}
               className="w-full rounded-lg bg-indigo-600 py-3 text-white font-medium hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
             >
               Submit Comment
             </button>
+          )}
+
+          {mode === 'view' && !COMMENTS_ENABLED && (
+            <div className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-3 text-center text-sm font-medium text-zinc-500">
+              Comments are currently closed
+            </div>
           )}
 
           {mode === 'comment' && (
